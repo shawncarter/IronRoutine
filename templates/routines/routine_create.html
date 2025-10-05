@@ -1,0 +1,257 @@
+{% extends 'base.html' %}
+
+{% block title %}Create Routine - IronRoutine{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <h1 class="text-3xl font-bold mb-6">Create New Routine</h1>
+    
+    <form method="post" id="routine-form">
+        {% csrf_token %}
+        
+        <!-- Basic Info -->
+        <div class="card mb-6">
+            <div class="card-header">Routine Information</div>
+            <div class="card-body">
+                <div class="form-group">
+                    <label for="name" class="form-label">Routine Name *</label>
+                    <input type="text" id="name" name="name" class="form-control" 
+                           placeholder="e.g., Upper Body, Push Day, Monday Workout" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="description" class="form-label">Description</label>
+                    <textarea id="description" name="description" class="form-control" 
+                              rows="3" placeholder="Optional description of your routine..."></textarea>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Exercise Selection -->
+        <div class="card mb-6">
+            <div class="card-header">Select Exercises</div>
+            <div class="card-body">
+                <!-- Search and Filters -->
+                <div class="search-filters mb-4">
+                    <div class="filter-row">
+                        <div class="form-group">
+                            <label for="exercise-search" class="form-label">Search Exercises</label>
+                            <input type="text" id="exercise-search" class="form-control" 
+                                   placeholder="Search by exercise name...">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="muscle-group-filter" class="form-label">Muscle Group</label>
+                            <select id="muscle-group-filter" class="form-control form-select">
+                                <option value="">All Muscle Groups</option>
+                                {% for muscle_group in muscle_groups %}
+                                    <option value="{{ muscle_group.name }}">{{ muscle_group.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="difficulty-filter" class="form-label">Difficulty</label>
+                            <select id="difficulty-filter" class="form-control form-select">
+                                <option value="">All Levels</option>
+                                <option value="beginner">Beginner</option>
+                                <option value="intermediate">Intermediate</option>
+                                <option value="advanced">Advanced</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Exercise List -->
+                <div class="exercise-list">
+                    {% for exercise in exercises %}
+                        <div class="exercise-card" data-exercise-id="{{ exercise.id }}">
+                            <div class="flex justify-between items-start">
+                                <div class="flex-1">
+                                    <h4 class="card-title">{{ exercise.name }}</h4>
+                                    <p class="card-text mb-2">{{ exercise.description|truncatewords:15 }}</p>
+                                    
+                                    <div class="mb-2">
+                                        {% for muscle_group in exercise.muscle_groups.all %}
+                                            <span class="muscle-group-tag">{{ muscle_group.name }}</span>
+                                        {% endfor %}
+                                    </div>
+                                    
+                                    <span class="difficulty-badge difficulty-{{ exercise.difficulty }}">
+                                        {{ exercise.get_difficulty_display }}
+                                    </span>
+                                    
+                                    {% if exercise.equipment_needed %}
+                                        <div class="text-sm text-muted mt-2">
+                                            Equipment: {{ exercise.equipment_needed }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                
+                                <button type="button" class="btn btn-primary btn-sm add-exercise-btn" 
+                                        data-exercise-id="{{ exercise.id }}" 
+                                        data-exercise-name="{{ exercise.name }}">
+                                    Add to Routine
+                                </button>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Selected Exercises -->
+        <div class="card mb-6">
+            <div class="card-header">
+                Selected Exercises 
+                <span class="badge" id="exercise-count">0</span>
+            </div>
+            <div class="card-body">
+                <div id="routine-exercises">
+                    <div class="text-center text-muted py-4">
+                        No exercises selected yet. Add exercises from the list above.
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Submit -->
+        <div class="flex justify-between">
+            <a href="{% url 'routines:routine_list' %}" class="btn btn-secondary">Cancel</a>
+            <button type="submit" class="btn btn-success btn-lg">Create Routine</button>
+        </div>
+    </form>
+</div>
+
+<style>
+.routine-exercise-item {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.routine-exercise-item h4 {
+    margin: 0 0 0.5rem 0;
+    color: #2d3748;
+}
+
+.badge {
+    background: #667eea;
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+@media (max-width: 768px) {
+    .exercise-controls {
+        flex-direction: column;
+        align-items: stretch !important;
+        gap: 0.5rem !important;
+    }
+    
+    .exercise-controls input {
+        width: 100% !important;
+    }
+}
+</style>
+
+<script>
+// Override the updateExerciseCount function to also manage form submission
+function updateExerciseCount() {
+    const count = document.querySelectorAll('.routine-exercise-item').length;
+    const countElement = document.getElementById('exercise-count');
+    if (countElement) {
+        countElement.textContent = count;
+    }
+    
+    // Update the empty state
+    const container = document.getElementById('routine-exercises');
+    const emptyState = container.querySelector('.text-center.text-muted');
+    
+    if (count === 0) {
+        // Only add empty state if it doesn't exist
+        if (!emptyState) {
+            container.innerHTML = `
+                <div class="text-center text-muted py-4">
+                    No exercises selected yet. Add exercises from the list above.
+                </div>
+            `;
+        }
+    } else {
+        // Remove empty state if it exists
+        if (emptyState) {
+            emptyState.remove();
+        }
+    }
+}
+
+// Override addExerciseToRoutine to include hidden form fields
+function addExerciseToRoutine(exerciseId, exerciseName) {
+    console.log('Attempting to add exercise:', exerciseId, exerciseName);
+    
+    const routineExercises = document.getElementById('routine-exercises');
+    if (!routineExercises) {
+        console.log('routine-exercises container not found');
+        return;
+    }
+    
+    // Debug: Check what's currently in the container
+    console.log('Current container contents:', routineExercises.innerHTML);
+    
+    // Check if exercise already added by looking for the hidden input ONLY within the routine exercises container
+    const existingInput = routineExercises.querySelector(`input[name="exercise_${exerciseId}"]`);
+    console.log('Existing input found:', existingInput);
+    
+    if (existingInput) {
+        alert('Exercise already added to routine');
+        return;
+    }
+    
+    // Remove empty state message if it exists
+    const emptyState = routineExercises.querySelector('.text-center.text-muted');
+    if (emptyState) {
+        console.log('Removing empty state');
+        emptyState.remove();
+    }
+    
+    const exerciseDiv = document.createElement('div');
+    exerciseDiv.className = 'routine-exercise-item';
+    exerciseDiv.setAttribute('data-exercise-id', exerciseId);
+    
+    exerciseDiv.innerHTML = `
+        <div class="flex justify-between items-center">
+            <div class="exercise-info">
+                <h4>${exerciseName}</h4>
+                <input type="hidden" name="exercise_${exerciseId}" value="1">
+            </div>
+            <div class="exercise-controls flex gap-2 items-center">
+                <label>Sets:</label>
+                <input type="number" name="sets_${exerciseId}" value="3" min="1" max="10" class="form-control" style="width: 80px;">
+                <label>Rest (sec):</label>
+                <input type="number" name="rest_${exerciseId}" value="60" min="30" max="300" step="15" class="form-control" style="width: 100px;">
+                <button type="button" class="btn btn-danger btn-sm" onclick="removeExerciseFromRoutine(${exerciseId})">Remove</button>
+            </div>
+        </div>
+    `;
+    
+    routineExercises.appendChild(exerciseDiv);
+    console.log('Exercise added successfully');
+    updateExerciseCount();
+}
+
+// Use event delegation for add exercise buttons
+document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('click', function(e) {
+        if (e.target.classList.contains('add-exercise-btn')) {
+            const exerciseId = e.target.getAttribute('data-exercise-id');
+            const exerciseName = e.target.getAttribute('data-exercise-name');
+            addExerciseToRoutine(exerciseId, exerciseName);
+        }
+    });
+});
+</script>
+{% endblock %}

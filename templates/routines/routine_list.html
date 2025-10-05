@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+
+{% block title %}My Routines - IronRoutine{% endblock %}
+
+{% block content %}
+<div class="flex justify-between items-center mb-4">
+    <h1 class="text-3xl font-bold">My Routines</h1>
+    <a href="{% url 'routines:routine_create' %}" class="btn btn-primary">
+        + Create New Routine
+    </a>
+</div>
+
+{% if routines %}
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {% for routine in routines %}
+            <div class="card">
+                <div class="card-body">
+                    <h3 class="card-title">{{ routine.name }}</h3>
+                    
+                    {% if routine.description %}
+                        <p class="card-text">{{ routine.description|truncatewords:20 }}</p>
+                    {% endif %}
+                    
+                    <div class="stats-grid mb-4">
+                        <div class="stat-card">
+                            <div class="stat-value">{{ routine.get_total_exercises }}</div>
+                            <div class="stat-label">Exercises</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">{{ routine.get_estimated_duration }}</div>
+                            <div class="stat-label">Est. Minutes</div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex gap-2">
+                        <a href="{% url 'routines:routine_start' routine.id %}" 
+                           class="btn btn-success btn-lg flex-1">
+                            🏋️ Start Workout
+                        </a>
+                        <a href="{% url 'routines:routine_detail' routine.id %}" 
+                           class="btn btn-secondary">
+                            View
+                        </a>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% else %}
+    <div class="text-center py-12">
+        <h2 class="text-2xl text-muted mb-4">No routines yet</h2>
+        <p class="text-muted mb-6">Create your first workout routine to get started!</p>
+        <a href="{% url 'routines:routine_create' %}" class="btn btn-primary btn-lg">
+            Create Your First Routine
+        </a>
+    </div>
+{% endif %}
+
+<div class="mt-8">
+    <h2 class="text-xl font-semibold mb-4">Quick Actions</h2>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <a href="{% url 'exercises:exercise_list' %}" class="card text-center">
+            <div class="card-body">
+                <h3 class="card-title">Browse Exercises</h3>
+                <p class="card-text">Explore available exercises by muscle group</p>
+            </div>
+        </a>
+        <a href="{% url 'workouts:workout_history' %}" class="card text-center">
+            <div class="card-body">
+                <h3 class="card-title">Workout History</h3>
+                <p class="card-text">View your past workout sessions</p>
+            </div>
+        </a>
+        <div class="card text-center">
+            <div class="card-body">
+                <h3 class="card-title">Progress Stats</h3>
+                <p class="card-text">Coming soon: Track your progress</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

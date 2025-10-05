@@ -1,0 +1,138 @@
+{% extends 'base.html' %}
+
+{% block title %}Exercise Library - IronRoutine{% endblock %}
+
+{% block content %}
+<h1 class="text-3xl font-bold mb-6">Exercise Library</h1>
+
+<!-- Search and Filters -->
+<div class="search-filters">
+    <form method="get" class="filter-row">
+        <div class="form-group">
+            <label for="search" class="form-label">Search Exercises</label>
+            <input type="text" id="search" name="search" class="form-control" 
+                   value="{{ current_search }}" placeholder="Search by name or description...">
+        </div>
+        
+        <div class="form-group">
+            <label for="muscle_group" class="form-label">Muscle Group</label>
+            <select id="muscle_group" name="muscle_group" class="form-control form-select">
+                <option value="">All Muscle Groups</option>
+                {% for muscle_group in muscle_groups %}
+                    <option value="{{ muscle_group.name }}" 
+                            {% if current_muscle_group == muscle_group.name %}selected{% endif %}>
+                        {{ muscle_group.name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="difficulty" class="form-label">Difficulty</label>
+            <select id="difficulty" name="difficulty" class="form-control form-select">
+                <option value="">All Levels</option>
+                <option value="beginner" {% if current_difficulty == 'beginner' %}selected{% endif %}>Beginner</option>
+                <option value="intermediate" {% if current_difficulty == 'intermediate' %}selected{% endif %}>Intermediate</option>
+                <option value="advanced" {% if current_difficulty == 'advanced' %}selected{% endif %}>Advanced</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <button type="submit" class="btn btn-primary">Filter</button>
+            <a href="{% url 'exercises:exercise_list' %}" class="btn btn-secondary">Clear</a>
+        </div>
+    </form>
+</div>
+
+<!-- Results Count -->
+<div class="mb-4">
+    <p class="text-muted">
+        Showing {{ exercises.count }} exercise{{ exercises.count|pluralize }}
+        {% if current_search or current_muscle_group or current_difficulty %}
+            (filtered)
+        {% endif %}
+    </p>
+</div>
+
+<!-- Exercise Grid -->
+{% if exercises %}
+    <div class="exercise-list">
+        {% for exercise in exercises %}
+            <div class="exercise-card">
+                <div class="flex justify-between items-start mb-3">
+                    <div class="flex-1">
+                        <h3 class="card-title">
+                            <a href="{% url 'exercises:exercise_detail' exercise.id %}" 
+                               class="text-decoration-none">
+                                {{ exercise.name }}
+                            </a>
+                        </h3>
+                        <p class="card-text">{{ exercise.description|truncatewords:20 }}</p>
+                    </div>
+                    <span class="difficulty-badge difficulty-{{ exercise.difficulty }}">
+                        {{ exercise.get_difficulty_display }}
+                    </span>
+                </div>
+                
+                <!-- Muscle Groups -->
+                <div class="mb-3">
+                    {% for muscle_group in exercise.muscle_groups.all %}
+                        <span class="muscle-group-tag">{{ muscle_group.name }}</span>
+                    {% endfor %}
+                </div>
+                
+                <!-- Equipment -->
+                {% if exercise.equipment_needed %}
+                    <div class="text-sm text-muted mb-3">
+                        <strong>Equipment:</strong> {{ exercise.equipment_needed }}
+                    </div>
+                {% endif %}
+                
+                <!-- Actions -->
+                <div class="flex gap-2">
+                    <a href="{% url 'exercises:exercise_detail' exercise.id %}" 
+                       class="btn btn-primary btn-sm flex-1">
+                        View Details
+                    </a>
+                    {% if exercise.video_url %}
+                        <a href="{{ exercise.video_url }}" target="_blank" 
+                           class="btn btn-secondary btn-sm">
+                            📹 Video
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% else %}
+    <div class="text-center py-12">
+        <h2 class="text-2xl text-muted mb-4">No exercises found</h2>
+        {% if current_search or current_muscle_group or current_difficulty %}
+            <p class="text-muted mb-4">Try adjusting your search criteria.</p>
+            <a href="{% url 'exercises:exercise_list' %}" class="btn btn-primary">
+                Clear Filters
+            </a>
+        {% else %}
+            <p class="text-muted">Check back later for more exercises!</p>
+        {% endif %}
+    </div>
+{% endif %}
+
+<!-- Quick Navigation -->
+<div class="mt-8">
+    <h2 class="text-xl font-semibold mb-4">Browse by Muscle Group</h2>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {% for muscle_group in muscle_groups %}
+            <a href="?muscle_group={{ muscle_group.name }}" 
+               class="card text-center hover:bg-gray-50">
+                <div class="card-body py-3">
+                    <h4 class="card-title">{{ muscle_group.name }}</h4>
+                    <p class="text-sm text-muted">
+                        {{ muscle_group.exercises.count }} exercise{{ muscle_group.exercises.count|pluralize }}
+                    </p>
+                </div>
+            </a>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
