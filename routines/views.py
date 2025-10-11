@@ -3,6 +3,7 @@ from django.contrib import messages
 from django.contrib.auth.models import User
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
+from django.db.models import Q
 from .models import Routine, RoutineExercise
 from exercises.models import Exercise, MuscleGroup
 from workouts.models import WorkoutSession
@@ -89,13 +90,45 @@ def routine_create(request):
         messages.success(request, f'Routine "{name}" created successfully!')
         return redirect('routines:routine_detail', routine_id=routine.id)
     
-    # GET request - show form
-    exercises = Exercise.objects.all().order_by('name')
-    muscle_groups = MuscleGroup.objects.all().order_by('name')
+    # GET request - show form with filtering (using same logic as exercise_list)
+    exercises = Exercise.objects.all().order_by('title', 'name')
+    
+    # Get unique muscle groups from actual exercises
+    muscle_values = Exercise.objects.exclude(muscle='').values_list('muscle', flat=True).distinct().order_by('muscle')
+    muscle_groups = [{'name': muscle} for muscle in muscle_values if muscle]
+    
+    # Apply filters (exact same logic as exercise_list view)
+    search = request.GET.get('search', '')
+    muscle_group = request.GET.get('muscle_group', '')
+    equipment = request.GET.get('equipment', '')
+    difficulty = request.GET.get('difficulty', '')
+    
+    if search:
+        exercises = exercises.filter(
+            Q(name__icontains=search) | 
+            Q(title__icontains=search) |
+            Q(description__icontains=search) |
+            Q(muscle__icontains=search)
+        ).distinct()
+    
+    if muscle_group:
+        exercises = exercises.filter(
+            Q(muscle__icontains=muscle_group)
+        ).distinct()
+    
+    if equipment:
+        exercises = exercises.filter(equipment=equipment)
+    
+    if difficulty:
+        exercises = exercises.filter(difficulty=difficulty)
     
     context = {
         'exercises': exercises,
         'muscle_groups': muscle_groups,
+        'current_search': search,
+        'current_muscle_group': muscle_group,
+        'current_equipment': equipment,
+        'current_difficulty': difficulty,
     }
     return render(request, 'routines/routine_create.html', context)
 

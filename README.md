@@ -4,10 +4,39 @@ A Django-based fitness tracking application for managing workout routines, exerc
 
 ## Features
 
-- **Exercise Management**: Create and manage a database of exercises with muscle groups, difficulty levels, and instructions
+- **Comprehensive Exercise Database**: 1000+ exercises with detailed instructions and video demonstrations
+- **Exercise Management**: Browse exercises by muscle group, equipment type, and difficulty level
+- **Video Demonstrations**: Front and side view videos for both male and female demonstrations
 - **Routine Builder**: Build custom workout routines by combining exercises with sets, reps, and rest times
 - **Workout Tracking**: Start workout sessions and track sets, weights, reps, and total volume
 - **Progress History**: View workout history and track progress over time
+
+## 🎉 New: Exercise Database Integration
+
+IronRoutine now includes a comprehensive exercise database with:
+- **1000+ exercises** from `exercise_db.json`
+- **Step-by-step instructions** for each exercise
+- **Video demonstrations** (front and side views)
+- **Multiple equipment types**: Barbell, Dumbbells, Bodyweight, Machine, Kettlebells, Cables, Bands
+- **Difficulty levels**: Novice, Beginner, Intermediate, Advanced
+- **Muscle group targeting**: All major muscle groups covered
+
+### Quick Start - Load Exercise Data
+
+```bash
+# Run the setup script to load all exercises
+./load_exercise_data.sh
+```
+
+Or manually:
+```bash
+source venv/bin/activate
+python manage.py makemigrations exercises
+python manage.py migrate
+python manage.py load_exercises
+```
+
+See [EXERCISE_INTEGRATION.md](EXERCISE_INTEGRATION.md) for detailed documentation.
 
 ## Project Structure
 

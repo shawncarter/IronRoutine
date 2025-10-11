@@ -6,6 +6,102 @@
 <div class="max-w-4xl mx-auto">
     <h1 class="text-3xl font-bold mb-6">Create New Routine</h1>
     
+    <!-- Routine Creation Form -->
+    <form method="post" id="routine-form">
+        {% csrf_token %}
+        
+        <!-- Basic Info -->
+        <div class="card mb-6">
+            <div class="card-header">Routine Information</div>
+            <div class="card-body">
+                <div class="form-group">
+                    <label for="name" class="form-label">Routine Name *</label>
+                    <input type="text" id="name" name="name" class="form-control" 
+                           placeholder="e.g., Upper Body, Push Day, Monday Workout" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="description" class="form-label">Description</label>
+                    <textarea id="description" name="description" class="form-control" 
+                              rows="3" placeholder="Optional description of your routine..."></textarea>
+                </div>
+            </div>
+        </div>
+    </form>
+    
+    <!-- Search and Filters (Separate form) -->
+    <div class="card mb-6">
+        <div class="card-header">Filter Exercises</div>
+        <div class="card-body">
+            <form method="get" action="{% url 'routines:routine_create' %}" id="exercise-filter-form" class="search-filters">
+                    <div class="filter-row">
+                        <div class="form-group">
+                            <label for="search" class="form-label">Search Exercises</label>
+                            <input type="text" id="search" name="search" class="form-control" 
+                                   placeholder="Search by exercise name..." 
+                                   value="{{ current_search }}"
+                                   oninput="debounceSubmit()">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="muscle_group" class="form-label">Muscle Group</label>
+                            <select id="muscle_group" name="muscle_group" class="form-control form-select" onchange="this.form.submit()">
+                                <option value="">All Muscle Groups</option>
+                                {% for muscle_group in muscle_groups %}
+                                    <option value="{{ muscle_group.name }}" {% if current_muscle_group == muscle_group.name %}selected{% endif %}>
+                                        {{ muscle_group.name|title }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="equipment" class="form-label">Equipment</label>
+                            <select id="equipment" name="equipment" class="form-control form-select" onchange="this.form.submit()">
+                                <option value="">All Equipment</option>
+                                <option value="barbell" {% if current_equipment == 'barbell' %}selected{% endif %}>Barbell</option>
+                                <option value="dumbbells" {% if current_equipment == 'dumbbells' %}selected{% endif %}>Dumbbells</option>
+                                <option value="bodyweight" {% if current_equipment == 'bodyweight' %}selected{% endif %}>Bodyweight</option>
+                                <option value="machine" {% if current_equipment == 'machine' %}selected{% endif %}>Machine</option>
+                                <option value="kettlebells" {% if current_equipment == 'kettlebells' %}selected{% endif %}>Kettlebells</option>
+                                <option value="cables" {% if current_equipment == 'cables' %}selected{% endif %}>Cables</option>
+                                <option value="band" {% if current_equipment == 'band' %}selected{% endif %}>Resistance Band</option>
+                                <option value="stretches" {% if current_equipment == 'stretches' %}selected{% endif %}>Stretches</option>
+                                <option value="recovery" {% if current_equipment == 'recovery' %}selected{% endif %}>Recovery</option>
+                                <option value="other" {% if current_equipment == 'other' %}selected{% endif %}>Other</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="difficulty" class="form-label">Difficulty</label>
+                            <select id="difficulty" name="difficulty" class="form-control form-select" onchange="this.form.submit()">
+                                <option value="">All Levels</option>
+                                <option value="Novice" {% if current_difficulty == 'Novice' %}selected{% endif %}>Novice</option>
+                                <option value="Beginner" {% if current_difficulty == 'Beginner' %}selected{% endif %}>Beginner</option>
+                                <option value="Intermediate" {% if current_difficulty == 'Intermediate' %}selected{% endif %}>Intermediate</option>
+                                <option value="Advanced" {% if current_difficulty == 'Advanced' %}selected{% endif %}>Advanced</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <a href="{% url 'routines:routine_create' %}" class="btn btn-secondary">Clear Filters</a>
+                        </div>
+                    </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Results Count -->
+    <div class="mb-4">
+        <p class="text-muted">
+            Showing {{ exercises.count }} exercise{{ exercises.count|pluralize }}
+            {% if current_search or current_muscle_group or current_equipment or current_difficulty %}
+                (filtered)
+            {% endif %}
+        </p>
+    </div>
+    
+    <!-- Routine Creation Form -->
     <form method="post" id="routine-form">
         {% csrf_token %}
         
@@ -31,76 +127,106 @@
         <div class="card mb-6">
             <div class="card-header">Select Exercises</div>
             <div class="card-body">
-                <!-- Search and Filters -->
-                <div class="search-filters mb-4">
-                    <div class="filter-row">
-                        <div class="form-group">
-                            <label for="exercise-search" class="form-label">Search Exercises</label>
-                            <input type="text" id="exercise-search" class="form-control" 
-                                   placeholder="Search by exercise name...">
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="muscle-group-filter" class="form-label">Muscle Group</label>
-                            <select id="muscle-group-filter" class="form-control form-select">
-                                <option value="">All Muscle Groups</option>
-                                {% for muscle_group in muscle_groups %}
-                                    <option value="{{ muscle_group.name }}">{{ muscle_group.name }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="difficulty-filter" class="form-label">Difficulty</label>
-                            <select id="difficulty-filter" class="form-control form-select">
-                                <option value="">All Levels</option>
-                                <option value="beginner">Beginner</option>
-                                <option value="intermediate">Intermediate</option>
-                                <option value="advanced">Advanced</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-                
                 <!-- Exercise List -->
                 <div class="exercise-list">
                     {% for exercise in exercises %}
-                        <div class="exercise-card" data-exercise-id="{{ exercise.id }}">
-                            <div class="flex justify-between items-start">
-                                <div class="flex-1">
-                                    <h4 class="card-title">{{ exercise.name }}</h4>
-                                    <p class="card-text mb-2">{{ exercise.description|truncatewords:15 }}</p>
-                                    
-                                    <div class="mb-2">
-                                        {% for muscle_group in exercise.muscle_groups.all %}
-                                            <span class="muscle-group-tag">{{ muscle_group.name }}</span>
-                                        {% endfor %}
+                        <div class="card mb-3 exercise-card" 
+                             data-exercise-id="{{ exercise.id }}"
+                             data-exercise-name="{{ exercise.title|default:exercise.name }}"
+                             data-equipment="{{ exercise.equipment|default:'' }}"
+                             data-difficulty="{{ exercise.difficulty }}"
+                             data-muscle="{{ exercise.muscle|default:'' }}">
+                            <div class="card-body">
+                                <!-- Top: Title and Badges -->
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <h5 class="card-title mb-0">{{ exercise.title|default:exercise.name }}</h5>
+                                    <div class="d-flex flex-column gap-1 align-items-end">
+                                        <span class="badge bg-{{ exercise.difficulty|lower }}-level clickable-badge" 
+                                              data-filter-type="difficulty" 
+                                              data-filter-value="{{ exercise.difficulty }}"
+                                              title="Click to filter by {{ exercise.difficulty }}"
+                                              role="button">
+                                            {{ exercise.difficulty|title }}
+                                        </span>
+                                        
+                                        {% if exercise.muscle %}
+                                            <span class="badge bg-primary clickable-badge" 
+                                                  data-filter-type="muscle" 
+                                                  data-filter-value="{{ exercise.muscle }}"
+                                                  title="Click to filter by {{ exercise.muscle|title }}"
+                                                  role="button">
+                                                {{ exercise.muscle|title }}
+                                            </span>
+                                        {% else %}
+                                            {% for muscle_group in exercise.muscle_groups.all %}
+                                                <span class="badge bg-primary clickable-badge" 
+                                                      data-filter-type="muscle" 
+                                                      data-filter-value="{{ muscle_group.name }}"
+                                                      title="Click to filter by {{ muscle_group.name }}"
+                                                      role="button">
+                                                    {{ muscle_group.name }}
+                                                </span>
+                                            {% endfor %}
+                                        {% endif %}
+                                        
+                                        {% if exercise.equipment %}
+                                            <span class="badge bg-secondary clickable-badge" 
+                                                  data-filter-type="equipment" 
+                                                  data-filter-value="{{ exercise.equipment }}"
+                                                  title="Click to filter by {{ exercise.get_equipment_display }}"
+                                                  role="button">
+                                                {{ exercise.get_equipment_display }}
+                                            </span>
+                                        {% elif exercise.equipment_needed %}
+                                            <span class="badge bg-secondary clickable-badge"
+                                                  data-filter-type="equipment" 
+                                                  data-filter-value="other"
+                                                  role="button">
+                                                {{ exercise.equipment_needed }}
+                                            </span>
+                                        {% endif %}
                                     </div>
-                                    
-                                    <span class="difficulty-badge difficulty-{{ exercise.difficulty }}">
-                                        {{ exercise.get_difficulty_display }}
-                                    </span>
-                                    
-                                    {% if exercise.equipment_needed %}
-                                        <div class="text-sm text-muted mt-2">
-                                            Equipment: {{ exercise.equipment_needed }}
-                                        </div>
-                                    {% endif %}
                                 </div>
                                 
-                                <button type="button" class="btn btn-primary btn-sm add-exercise-btn" 
-                                        data-exercise-id="{{ exercise.id }}" 
-                                        data-exercise-name="{{ exercise.name }}">
-                                    Add to Routine
-                                </button>
+                                <!-- Middle: Description -->
+                                <p class="card-text text-muted small mb-3">{{ exercise.description|truncatewords:15 }}</p>
+                                
+                                <!-- Bottom: Action buttons horizontal -->
+                                <div class="d-flex gap-2">
+                                    {% if exercise.has_videos %}
+                                    <button type="button" class="btn btn-outline-info btn-sm view-video-btn flex-fill" 
+                                            data-exercise-id="{{ exercise.id }}"
+                                            data-exercise-title="{{ exercise.title|default:exercise.name }}"
+                                            data-male-front="{{ exercise.male_videos.front }}"
+                                            data-male-side="{{ exercise.male_videos.side }}"
+                                            data-female-front="{{ exercise.female_videos.front }}"
+                                            data-female-side="{{ exercise.female_videos.side }}"
+                                            title="Preview exercise videos">
+                                        <i class="bi bi-play-circle"></i> Preview Videos
+                                    </button>
+                                    {% endif %}
+                                    <button type="button" class="btn btn-outline-success btn-sm add-exercise-btn flex-fill" 
+                                            data-exercise-id="{{ exercise.id }}" 
+                                            data-exercise-name="{{ exercise.name }}">
+                                        <i class="bi bi-plus-circle"></i> Add to Routine
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     {% endfor %}
                 </div>
             </div>
         </div>
+    </div>
+    
+    <!-- Selected Exercises (Inside routine form for submission) -->
+    <form method="post" id="routine-form-submit">
+        {% csrf_token %}
         
-        <!-- Selected Exercises -->
+        <!-- Copy routine name and description from above -->
+        <input type="hidden" id="hidden-name" name="name">
+        <input type="hidden" id="hidden-description" name="description">
+        
         <div class="card mb-6">
             <div class="card-header">
                 Selected Exercises 
@@ -123,7 +249,45 @@
     </form>
 </div>
 
+<!-- Video Preview Modal -->
+<div id="video-modal" class="modal" style="display: none;">
+    <div class="modal-overlay" onclick="closeVideoModal()"></div>
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="modal-exercise-title">Exercise Videos</h3>
+            <div class="flex gap-2">
+                <button type="button" class="btn btn-sm btn-primary" id="modal-male-btn" onclick="switchGender('male')">
+                    Male
+                </button>
+                <button type="button" class="btn btn-sm btn-outline" id="modal-female-btn" onclick="switchGender('female')">
+                    Female
+                </button>
+                <button type="button" class="modal-close" onclick="closeVideoModal()">&times;</button>
+            </div>
+        </div>
+        <div class="modal-body">
+            <div class="video-grid">
+                <div class="video-container">
+                    <h4 class="font-semibold mb-2">Front View</h4>
+                    <video id="modal-video-front" controls autoplay muted loop class="w-full rounded-lg" preload="auto" style="max-height: 400px; background: #000;">
+                        <source id="modal-video-front-source" src="" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>
+                </div>
+                <div class="video-container">
+                    <h4 class="font-semibold mb-2">Side View</h4>
+                    <video id="modal-video-side" controls autoplay muted loop class="w-full rounded-lg" preload="auto" style="max-height: 400px; background: #000;">
+                        <source id="modal-video-side-source" src="" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <style>
+/* Routine Exercise Item Styling */
 .routine-exercise-item {
     background: #f8f9fa;
     border: 1px solid #e9ecef;
@@ -137,13 +301,139 @@
     color: #2d3748;
 }
 
-.badge {
+/* Exercise Card Hover Effect */
+.exercise-card {
+    transition: all 0.2s ease;
+}
+
+.exercise-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+}
+
+/* Clickable Badges */
+.clickable-badge {
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.clickable-badge:hover {
+    opacity: 0.85;
+    transform: scale(1.05);
+}
+
+.clickable-badge:active {
+    transform: scale(0.98);
+}
+
+/* Difficulty Level Badge Colors */
+.bg-novice-level {
+    background-color: #28a745 !important; /* Bootstrap success green */
+}
+
+.bg-beginner-level {
+    background-color: #ffc107 !important; /* Bootstrap warning yellow */
+    color: #212529 !important;
+}
+
+.bg-intermediate-level {
+    background-color: #fd7e14 !important; /* Bootstrap orange */
+}
+
+.bg-advanced-level {
+    background-color: #dc3545 !important; /* Bootstrap danger red */
+}
+
+/* Modal Styles */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+}
+
+.modal-content {
+    position: relative;
+    background: white;
+    border-radius: 12px;
+    max-width: 90%;
+    max-height: 90vh;
+    overflow: auto;
+    z-index: 1001;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: bold;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 2rem;
+    cursor: pointer;
+    color: #718096;
+    padding: 0;
+    width: 2rem;
+    height: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+
+.modal-close:hover {
+    color: #2d3748;
+}
+
+.modal-body {
+    padding: 1.5rem;
+}
+
+.video-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+}
+
+.video-container {
+    flex: 1;
+    min-width: 0;
+}
+
+.btn-outline {
+    border: 1px solid #667eea;
+    color: #667eea;
+    background: white;
+}
+
+.btn-outline:hover {
     background: #667eea;
     color: white;
-    padding: 0.25rem 0.5rem;
-    border-radius: 12px;
-    font-size: 0.75rem;
-    font-weight: 600;
 }
 
 @media (max-width: 768px) {
@@ -155,6 +445,14 @@
     
     .exercise-controls input {
         width: 100% !important;
+    }
+    
+    .video-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .modal-content {
+        max-width: 95%;
     }
 }
 </style>
@@ -189,8 +487,101 @@ function updateExerciseCount() {
     }
 }
 
+// LocalStorage functions to persist selected exercises across page reloads
+function saveRoutineToLocalStorage() {
+    try {
+        const routineExercises = document.getElementById('routine-exercises');
+        if (!routineExercises) {
+            console.error('routine-exercises element not found');
+            return;
+        }
+        
+        const exercises = [];
+        
+        routineExercises.querySelectorAll('.routine-exercise-item').forEach(item => {
+            const exerciseId = item.getAttribute('data-exercise-id');
+            const exerciseName = item.querySelector('h4').textContent;
+            const sets = item.querySelector(`input[name="sets_${exerciseId}"]`).value;
+            const rest = item.querySelector(`input[name="rest_${exerciseId}"]`).value;
+            
+            exercises.push({
+                id: exerciseId,
+                name: exerciseName,
+                sets: sets,
+                rest: rest
+            });
+        });
+        
+        // Also save routine name and description
+        const routineName = document.getElementById('name')?.value || '';
+        const routineDescription = document.getElementById('description')?.value || '';
+        
+        const routineData = {
+            exercises: exercises,
+            name: routineName,
+            description: routineDescription
+        };
+        
+        localStorage.setItem('routine_draft', JSON.stringify(routineData));
+        console.log('✅ Saved to localStorage:', routineData);
+    } catch (error) {
+        console.error('Error saving to localStorage:', error);
+    }
+}
+
+function loadRoutineFromLocalStorage() {
+    try {
+        const saved = localStorage.getItem('routine_draft');
+        if (!saved) {
+            console.log('No saved routine found in localStorage');
+            return;
+        }
+        
+        const routineData = JSON.parse(saved);
+        console.log('📥 Loading from localStorage:', routineData);
+        
+        // Load exercises (handle both old and new format)
+        const exercises = routineData.exercises || routineData;
+        
+        if (Array.isArray(exercises)) {
+            exercises.forEach(exercise => {
+                addExerciseToRoutine(exercise.id, exercise.name, exercise.sets, exercise.rest);
+            });
+        }
+        
+        // Load routine name and description if available
+        if (routineData.name) {
+            const nameInput = document.getElementById('name');
+            if (nameInput) nameInput.value = routineData.name;
+        }
+        
+        if (routineData.description) {
+            const descInput = document.getElementById('description');
+            if (descInput) descInput.value = routineData.description;
+        }
+        
+        console.log('✅ Loaded successfully');
+    } catch (error) {
+        console.error('Error loading from localStorage:', error);
+    }
+}
+
+function clearRoutineFromLocalStorage() {
+    localStorage.removeItem('routine_draft');
+    console.log('Cleared localStorage');
+}
+
+function removeExerciseFromRoutine(exerciseId) {
+    const exerciseDiv = document.querySelector(`.routine-exercise-item[data-exercise-id="${exerciseId}"]`);
+    if (exerciseDiv) {
+        exerciseDiv.remove();
+        updateExerciseCount();
+        saveRoutineToLocalStorage();
+    }
+}
+
 // Override addExerciseToRoutine to include hidden form fields
-function addExerciseToRoutine(exerciseId, exerciseName) {
+function addExerciseToRoutine(exerciseId, exerciseName, sets = 3, rest = 60) {
     console.log('Attempting to add exercise:', exerciseId, exerciseName);
     
     const routineExercises = document.getElementById('routine-exercises');
@@ -230,9 +621,9 @@ function addExerciseToRoutine(exerciseId, exerciseName) {
             </div>
             <div class="exercise-controls flex gap-2 items-center">
                 <label>Sets:</label>
-                <input type="number" name="sets_${exerciseId}" value="3" min="1" max="10" class="form-control" style="width: 80px;">
+                <input type="number" name="sets_${exerciseId}" value="${sets}" min="1" max="10" class="form-control" style="width: 80px;" onchange="saveRoutineToLocalStorage()">
                 <label>Rest (sec):</label>
-                <input type="number" name="rest_${exerciseId}" value="60" min="30" max="300" step="15" class="form-control" style="width: 100px;">
+                <input type="number" name="rest_${exerciseId}" value="${rest}" min="30" max="300" step="15" class="form-control" style="width: 100px;" onchange="saveRoutineToLocalStorage()">
                 <button type="button" class="btn btn-danger btn-sm" onclick="removeExerciseFromRoutine(${exerciseId})">Remove</button>
             </div>
         </div>
@@ -241,10 +632,26 @@ function addExerciseToRoutine(exerciseId, exerciseName) {
     routineExercises.appendChild(exerciseDiv);
     console.log('Exercise added successfully');
     updateExerciseCount();
+    
+    // Save to localStorage with explicit logging
+    console.log('🔄 Calling saveRoutineToLocalStorage...');
+    saveRoutineToLocalStorage();
+    console.log('✅ saveRoutineToLocalStorage call completed');
 }
 
 // Use event delegation for add exercise buttons
 document.addEventListener('DOMContentLoaded', function() {
+    // Load saved routine from localStorage on page load
+    loadRoutineFromLocalStorage();
+    
+    // Clear localStorage when routine is successfully submitted
+    const routineForm = document.getElementById('routine-form');
+    if (routineForm) {
+        routineForm.addEventListener('submit', function() {
+            clearRoutineFromLocalStorage();
+        });
+    }
+    
     document.addEventListener('click', function(e) {
         if (e.target.classList.contains('add-exercise-btn')) {
             const exerciseId = e.target.getAttribute('data-exercise-id');
@@ -252,6 +659,138 @@ document.addEventListener('DOMContentLoaded', function() {
             addExerciseToRoutine(exerciseId, exerciseName);
         }
     });
+    
+    // Add click handlers for video buttons
+    document.querySelectorAll('.view-video-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const title = this.dataset.exerciseTitle;
+            const maleFront = this.dataset.maleFront;
+            const maleSide = this.dataset.maleSide;
+            const femaleFront = this.dataset.femaleFront;
+            const femaleSide = this.dataset.femaleSide;
+            
+            currentMaleVideos = { front: maleFront, side: maleSide };
+            currentFemaleVideos = { front: femaleFront, side: femaleSide };
+            
+            openVideoModal(title);
+        });
+    });
+    
+    // Add debounce function for search input
+    let debounceTimer;
+    window.debounceSubmit = function() {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(function() {
+            document.getElementById('exercise-filter-form').submit();
+        }, 500);
+    };
+    
+    // Add click handlers for badge filtering
+    document.querySelectorAll('.clickable-badge').forEach(badge => {
+        badge.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const filterType = this.dataset.filterType;
+            const filterValue = this.dataset.filterValue;
+            
+            // Build URL with the filter parameter
+            const url = new URL(window.location.href);
+            
+            if (filterType === 'difficulty') {
+                url.searchParams.set('difficulty', filterValue);
+            } else if (filterType === 'muscle') {
+                url.searchParams.set('muscle_group', filterValue);
+            } else if (filterType === 'equipment') {
+                url.searchParams.set('equipment', filterValue);
+            }
+            
+            // Navigate to the filtered URL
+            window.location.href = url.toString();
+        });
+    });
+    
+    // Debug: Log some sample equipment values
+    const sampleCards = document.querySelectorAll('.exercise-card');
+    console.log('Sample equipment values from first 5 cards:');
+    for (let i = 0; i < Math.min(5, sampleCards.length); i++) {
+        console.log(`Card ${i}:`, {
+            name: sampleCards[i].dataset.exerciseName,
+            equipment: sampleCards[i].dataset.equipment,
+            difficulty: sampleCards[i].dataset.difficulty,
+            muscle: sampleCards[i].dataset.muscle
+        });
+    }
+});
+
+// Video Modal Functionality
+let currentMaleVideos = { front: '', side: '' };
+let currentFemaleVideos = { front: '', side: '' };
+let currentGender = 'male';
+
+function openVideoModal(title) {
+    document.getElementById('modal-exercise-title').textContent = title;
+    document.getElementById('video-modal').style.display = 'flex';
+    switchGender('male');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeVideoModal() {
+    const modal = document.getElementById('video-modal');
+    modal.style.display = 'none';
+    document.body.style.overflow = '';
+    
+    const frontVideo = document.getElementById('modal-video-front');
+    const sideVideo = document.getElementById('modal-video-side');
+    frontVideo.pause();
+    sideVideo.pause();
+    frontVideo.currentTime = 0;
+    sideVideo.currentTime = 0;
+}
+
+function switchGender(gender) {
+    currentGender = gender;
+    const videos = gender === 'male' ? currentMaleVideos : currentFemaleVideos;
+    
+    const maleBtn = document.getElementById('modal-male-btn');
+    const femaleBtn = document.getElementById('modal-female-btn');
+    
+    if (gender === 'male') {
+        maleBtn.classList.add('btn-primary');
+        maleBtn.classList.remove('btn-outline');
+        femaleBtn.classList.remove('btn-primary');
+        femaleBtn.classList.add('btn-outline');
+    } else {
+        femaleBtn.classList.add('btn-primary');
+        femaleBtn.classList.remove('btn-outline');
+        maleBtn.classList.remove('btn-primary');
+        maleBtn.classList.add('btn-outline');
+    }
+    
+    const frontSource = document.getElementById('modal-video-front-source');
+    const sideSource = document.getElementById('modal-video-side-source');
+    const frontVideo = document.getElementById('modal-video-front');
+    const sideVideo = document.getElementById('modal-video-side');
+    
+    if (videos.front) {
+        const frontPath = videos.front.replace('videos/', '');
+        frontSource.src = '/static/' + frontPath;
+        frontVideo.load();
+        frontVideo.play();
+    }
+    
+    if (videos.side) {
+        const sidePath = videos.side.replace('videos/', '');
+        sideSource.src = '/static/' + sidePath;
+        sideVideo.load();
+        sideVideo.play();
+    }
+}
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeVideoModal();
+    }
 });
 </script>
 {% endblock %}

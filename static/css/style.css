@@ -21,12 +21,12 @@ body {
 }
 
 .nav-container {
-    max-width: 1200px;
+    max-width: 100%;
     margin: 0 auto;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0 1rem;
+    padding: 0 2rem;
 }
 
 .nav-brand {
@@ -55,9 +55,9 @@ body {
 
 /* Main content */
 .main-content {
-    max-width: 1200px;
+    max-width: 100%;
     margin: 2rem auto;
-    padding: 0 1rem;
+    padding: 0 2rem;
 }
 
 /* Messages */

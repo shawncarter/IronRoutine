@@ -1,0 +1,282 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ exercise.title }} - IronRoutine{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto">
+    <!-- Back Button -->
+    <div class="mb-4">
+        <a href="{% url 'exercises:exercise_list' %}" class="btn btn-secondary">
+            ← Back to Exercises
+        </a>
+    </div>
+
+    <!-- Exercise Header -->
+    <div class="card mb-6">
+        <div class="card-body">
+            <div class="flex justify-between items-start mb-4">
+                <div>
+                    <h1 class="text-3xl font-bold mb-2">{{ exercise.title }}</h1>
+                    <div class="flex flex-wrap gap-2 mb-3">
+                        <span class="badge badge-primary">{{ exercise.get_equipment_display }}</span>
+                        <span class="badge badge-secondary">{{ exercise.muscle|title }}</span>
+                        <span class="badge badge-{{ exercise.difficulty|lower }}">{{ exercise.difficulty }}</span>
+                    </div>
+                </div>
+                
+                {% if exercise.male_url or exercise.female_url %}
+                <div class="flex gap-2">
+                    {% if exercise.male_url %}
+                    <a href="{{ exercise.male_url }}" target="_blank" class="btn btn-sm btn-outline" title="Opens external video demonstration">
+                        🔗 View Male Demo
+                    </a>
+                    {% endif %}
+                    {% if exercise.female_url %}
+                    <a href="{{ exercise.female_url }}" target="_blank" class="btn btn-sm btn-outline" title="Opens external video demonstration">
+                        🔗 View Female Demo
+                    </a>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Video Section -->
+        {% if exercise.has_videos and videos %}
+        <div class="card">
+            <div class="card-header">
+                <div class="flex justify-between items-center">
+                    <span>Exercise Videos</span>
+                    <div class="flex gap-2">
+                        <a href="?gender=male" class="btn btn-sm {% if preferred_gender == 'male' %}btn-primary{% else %}btn-outline{% endif %}">
+                            Male
+                        </a>
+                        <a href="?gender=female" class="btn btn-sm {% if preferred_gender == 'female' %}btn-primary{% else %}btn-outline{% endif %}">
+                            Female
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="video-grid">
+                    {% if videos.front %}
+                    <div class="video-container">
+                        <h4 class="font-semibold mb-2">Front View</h4>
+                        <video controls autoplay muted loop class="w-full rounded-lg" preload="auto" style="max-height: 500px; background: #000;">
+                            {% load static %}
+                            <source src="{% static videos.front|slice:'7:' %}" type="video/mp4">
+                            Your browser does not support the video tag.
+                        </video>
+                    </div>
+                    {% endif %}
+
+                    {% if videos.side %}
+                    <div class="video-container">
+                        <h4 class="font-semibold mb-2">Side View</h4>
+                        <video controls autoplay muted loop class="w-full rounded-lg" preload="auto" style="max-height: 500px; background: #000;">
+                            {% load static %}
+                            <source src="{% static videos.side|slice:'7:' %}" type="video/mp4">
+                            Your browser does not support the video tag.
+                        </video>
+                    </div>
+                    {% endif %}
+                </div>
+
+                {% if not videos.front and not videos.side %}
+                <p class="text-muted">No videos available for this view.</p>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Instructions Section -->
+        <div class="card">
+            <div class="card-header">Instructions</div>
+            <div class="card-body">
+                {% if instructions %}
+                <ol class="instruction-list">
+                    {% for instruction in instructions %}
+                    <li class="instruction-item">
+                        {{ instruction }}
+                    </li>
+                    {% endfor %}
+                </ol>
+                {% else %}
+                <p class="text-muted">No instructions available for this exercise.</p>
+                {% endif %}
+
+                {% if exercise.force or exercise.grips or exercise.mechanic %}
+                <div class="mt-4 pt-4 border-t">
+                    <h4 class="font-semibold mb-2">Additional Details</h4>
+                    {% if exercise.force %}
+                    <p class="text-sm mb-1"><strong>Force:</strong> {{ exercise.force }}</p>
+                    {% endif %}
+                    {% if exercise.grips %}
+                    <p class="text-sm mb-1"><strong>Grips:</strong> {{ exercise.grips }}</p>
+                    {% endif %}
+                    {% if exercise.mechanic %}
+                    <p class="text-sm mb-1"><strong>Mechanic:</strong> {{ exercise.mechanic }}</p>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Related Exercises -->
+    {% if related_exercises %}
+    <div class="card mt-6">
+        <div class="card-header">Related Exercises</div>
+        <div class="card-body">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {% for related in related_exercises %}
+                <a href="{% url 'exercises:exercise_detail' related.id %}" class="exercise-card-link">
+                    <div class="exercise-card-small">
+                        <h4 class="font-semibold mb-2">{{ related.title }}</h4>
+                        <div class="flex flex-wrap gap-1 mb-2">
+                            <span class="badge-sm badge-primary">{{ related.get_equipment_display }}</span>
+                            <span class="badge-sm badge-secondary">{{ related.muscle|title }}</span>
+                        </div>
+                        {% if related.has_videos %}
+                        <span class="text-xs text-success">📹 Has Videos</span>
+                        {% endif %}
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.instruction-list {
+    list-style: none;
+    counter-reset: instruction-counter;
+    padding-left: 0;
+}
+
+.instruction-item {
+    counter-increment: instruction-counter;
+    padding: 1rem;
+    margin-bottom: 0.75rem;
+    background: #f8f9fa;
+    border-left: 4px solid #667eea;
+    border-radius: 4px;
+    position: relative;
+    padding-left: 3rem;
+}
+
+.instruction-item::before {
+    content: counter(instruction-counter);
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    background: #667eea;
+    color: white;
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 0.875rem;
+}
+
+.badge {
+    display: inline-block;
+    padding: 0.375rem 0.75rem;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.badge-primary {
+    background: #667eea;
+    color: white;
+}
+
+.badge-secondary {
+    background: #718096;
+    color: white;
+}
+
+.badge-novice, .badge-beginner {
+    background: #48bb78;
+    color: white;
+}
+
+.badge-intermediate {
+    background: #ed8936;
+    color: white;
+}
+
+.badge-advanced {
+    background: #f56565;
+    color: white;
+}
+
+.badge-sm {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+}
+
+.exercise-card-link {
+    text-decoration: none;
+    color: inherit;
+}
+
+.exercise-card-small {
+    padding: 1rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.5rem;
+    transition: all 0.2s;
+}
+
+.exercise-card-small:hover {
+    border-color: #667eea;
+    box-shadow: 0 4px 6px rgba(102, 126, 234, 0.1);
+    transform: translateY(-2px);
+}
+
+.video-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+}
+
+.video-container {
+    flex: 1;
+    min-width: 0;
+}
+
+@media (max-width: 768px) {
+    .video-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+video {
+    background: #000;
+}
+
+.btn-outline {
+    border: 1px solid #667eea;
+    color: #667eea;
+    background: transparent;
+}
+
+.btn-outline:hover {
+    background: #667eea;
+    color: white;
+}
+
+.text-success {
+    color: #48bb78;
+}
+</style>
+{% endblock %}

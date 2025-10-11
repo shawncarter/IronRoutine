@@ -149,6 +149,9 @@ media/
 staticfiles/
 static_root/
 
+# Video files
+*.mp4
+
 # Local development
 .env.local
 .env.development.local

@@ -7,42 +7,95 @@
 
 <!-- Search and Filters -->
 <div class="search-filters">
-    <form method="get" class="filter-row">
+    <form method="get" class="filter-row" id="exercise-filter-form">
         <div class="form-group">
             <label for="search" class="form-label">Search Exercises</label>
             <input type="text" id="search" name="search" class="form-control" 
-                   value="{{ current_search }}" placeholder="Search by name or description...">
+                   value="{{ current_search }}" placeholder="Search by name or description..."
+                   onkeyup="debounceSubmit()">
         </div>
         
         <div class="form-group">
             <label for="muscle_group" class="form-label">Muscle Group</label>
-            <select id="muscle_group" name="muscle_group" class="form-control form-select">
+            <select id="muscle_group" name="muscle_group" class="form-control form-select" onchange="this.form.submit()">
                 <option value="">All Muscle Groups</option>
                 {% for muscle_group in muscle_groups %}
                     <option value="{{ muscle_group.name }}" 
                             {% if current_muscle_group == muscle_group.name %}selected{% endif %}>
-                        {{ muscle_group.name }}
+                        {{ muscle_group.name|title }}
                     </option>
                 {% endfor %}
             </select>
         </div>
         
         <div class="form-group">
-            <label for="difficulty" class="form-label">Difficulty</label>
-            <select id="difficulty" name="difficulty" class="form-control form-select">
-                <option value="">All Levels</option>
-                <option value="beginner" {% if current_difficulty == 'beginner' %}selected{% endif %}>Beginner</option>
-                <option value="intermediate" {% if current_difficulty == 'intermediate' %}selected{% endif %}>Intermediate</option>
-                <option value="advanced" {% if current_difficulty == 'advanced' %}selected{% endif %}>Advanced</option>
+            <label for="equipment" class="form-label">Equipment</label>
+            <select id="equipment" name="equipment" class="form-control form-select" onchange="this.form.submit()">
+                <option value="">All Equipment</option>
+                <option value="barbell" {% if current_equipment == 'barbell' %}selected{% endif %}>Barbell</option>
+                <option value="dumbbells" {% if current_equipment == 'dumbbells' %}selected{% endif %}>Dumbbells</option>
+                <option value="bodyweight" {% if current_equipment == 'bodyweight' %}selected{% endif %}>Bodyweight</option>
+                <option value="machine" {% if current_equipment == 'machine' %}selected{% endif %}>Machine</option>
+                <option value="kettlebells" {% if current_equipment == 'kettlebells' %}selected{% endif %}>Kettlebells</option>
+                <option value="cables" {% if current_equipment == 'cables' %}selected{% endif %}>Cables</option>
+                <option value="band" {% if current_equipment == 'band' %}selected{% endif %}>Resistance Band</option>
+                <option value="stretches" {% if current_equipment == 'stretches' %}selected{% endif %}>Stretches</option>
             </select>
         </div>
         
         <div class="form-group">
-            <button type="submit" class="btn btn-primary">Filter</button>
-            <a href="{% url 'exercises:exercise_list' %}" class="btn btn-secondary">Clear</a>
+            <label for="difficulty" class="form-label">Difficulty</label>
+            <select id="difficulty" name="difficulty" class="form-control form-select" onchange="this.form.submit()">
+                <option value="">All Levels</option>
+                <option value="Novice" {% if current_difficulty == 'Novice' %}selected{% endif %}>Novice</option>
+                <option value="Beginner" {% if current_difficulty == 'Beginner' %}selected{% endif %}>Beginner</option>
+                <option value="Intermediate" {% if current_difficulty == 'Intermediate' %}selected{% endif %}>Intermediate</option>
+                <option value="Advanced" {% if current_difficulty == 'Advanced' %}selected{% endif %}>Advanced</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <a href="{% url 'exercises:exercise_list' %}" class="btn btn-secondary">Clear Filters</a>
         </div>
     </form>
 </div>
+
+<script>
+let debounceTimer;
+function debounceSubmit() {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(function() {
+        document.getElementById('exercise-filter-form').submit();
+    }, 500);
+}
+
+// Add click handlers for badge filtering
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.clickable-badge').forEach(badge => {
+        badge.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const filterType = this.dataset.filterType;
+            const filterValue = this.dataset.filterValue;
+            
+            // Build URL with the filter parameter
+            const url = new URL(window.location.href);
+            
+            if (filterType === 'difficulty') {
+                url.searchParams.set('difficulty', filterValue);
+            } else if (filterType === 'muscle') {
+                url.searchParams.set('muscle_group', filterValue);
+            } else if (filterType === 'equipment') {
+                url.searchParams.set('equipment', filterValue);
+            }
+            
+            // Navigate to the filtered URL
+            window.location.href = url.toString();
+        });
+    });
+});
+</script>
 
 <!-- Results Count -->
 <div class="mb-4">
@@ -58,48 +111,75 @@
 {% if exercises %}
     <div class="exercise-list">
         {% for exercise in exercises %}
-            <div class="exercise-card">
-                <div class="flex justify-between items-start mb-3">
-                    <div class="flex-1">
-                        <h3 class="card-title">
-                            <a href="{% url 'exercises:exercise_detail' exercise.id %}" 
-                               class="text-decoration-none">
-                                {{ exercise.name }}
-                            </a>
-                        </h3>
-                        <p class="card-text">{{ exercise.description|truncatewords:20 }}</p>
+            <div class="card mb-3 exercise-card" 
+                 data-exercise-id="{{ exercise.id }}"
+                 data-exercise-name="{{ exercise.title|default:exercise.name }}"
+                 data-equipment="{{ exercise.equipment|default:'' }}"
+                 data-difficulty="{{ exercise.difficulty }}"
+                 data-muscle="{{ exercise.muscle|default:'' }}">
+                <div class="card-body">
+                    <!-- Top: Title and Badges -->
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <h5 class="card-title mb-0">{{ exercise.title|default:exercise.name }}</h5>
+                        <div class="d-flex flex-column gap-1 align-items-end">
+                            <span class="badge bg-{{ exercise.difficulty|lower }}-level clickable-badge" 
+                                  data-filter-type="difficulty" 
+                                  data-filter-value="{{ exercise.difficulty }}"
+                                  title="Click to filter by {{ exercise.difficulty }}"
+                                  role="button">
+                                {{ exercise.difficulty|title }}
+                            </span>
+                            
+                            {% if exercise.muscle %}
+                                <span class="badge bg-primary clickable-badge" 
+                                      data-filter-type="muscle" 
+                                      data-filter-value="{{ exercise.muscle }}"
+                                      title="Click to filter by {{ exercise.muscle|title }}"
+                                      role="button">
+                                    {{ exercise.muscle|title }}
+                                </span>
+                            {% else %}
+                                {% for muscle_group in exercise.muscle_groups.all %}
+                                    <span class="badge bg-primary clickable-badge" 
+                                          data-filter-type="muscle" 
+                                          data-filter-value="{{ muscle_group.name }}"
+                                          title="Click to filter by {{ muscle_group.name }}"
+                                          role="button">
+                                        {{ muscle_group.name }}
+                                    </span>
+                                {% endfor %}
+                            {% endif %}
+                            
+                            {% if exercise.equipment %}
+                                <span class="badge bg-secondary clickable-badge" 
+                                      data-filter-type="equipment" 
+                                      data-filter-value="{{ exercise.equipment }}"
+                                      title="Click to filter by {{ exercise.get_equipment_display }}"
+                                      role="button">
+                                    {{ exercise.get_equipment_display }}
+                                </span>
+                            {% elif exercise.equipment_needed %}
+                                <span class="badge bg-secondary clickable-badge"
+                                      data-filter-type="equipment" 
+                                      data-filter-value="other"
+                                      title="Click to filter by {{ exercise.equipment_needed }}"
+                                      role="button">
+                                    {{ exercise.equipment_needed }}
+                                </span>
+                            {% endif %}
+                        </div>
                     </div>
-                    <span class="difficulty-badge difficulty-{{ exercise.difficulty }}">
-                        {{ exercise.get_difficulty_display }}
-                    </span>
-                </div>
-                
-                <!-- Muscle Groups -->
-                <div class="mb-3">
-                    {% for muscle_group in exercise.muscle_groups.all %}
-                        <span class="muscle-group-tag">{{ muscle_group.name }}</span>
-                    {% endfor %}
-                </div>
-                
-                <!-- Equipment -->
-                {% if exercise.equipment_needed %}
-                    <div class="text-sm text-muted mb-3">
-                        <strong>Equipment:</strong> {{ exercise.equipment_needed }}
-                    </div>
-                {% endif %}
-                
-                <!-- Actions -->
-                <div class="flex gap-2">
-                    <a href="{% url 'exercises:exercise_detail' exercise.id %}" 
-                       class="btn btn-primary btn-sm flex-1">
-                        View Details
-                    </a>
-                    {% if exercise.video_url %}
-                        <a href="{{ exercise.video_url }}" target="_blank" 
-                           class="btn btn-secondary btn-sm">
-                            📹 Video
+                    
+                    <!-- Middle: Description -->
+                    <p class="card-text text-muted small mb-3">{{ exercise.description|truncatewords:15 }}</p>
+                    
+                    <!-- Bottom: Action button -->
+                    <div class="d-flex gap-2">
+                        <a href="{% url 'exercises:exercise_detail' exercise.id %}" 
+                           class="btn btn-outline-primary btn-sm flex-fill">
+                            <i class="bi bi-eye"></i> View Details
                         </a>
-                    {% endif %}
+                    </div>
                 </div>
             </div>
         {% endfor %}
@@ -135,4 +215,49 @@
         {% endfor %}
     </div>
 </div>
+
+<style>
+/* Exercise Card Hover Effect */
+.exercise-card {
+    transition: all 0.2s ease;
+}
+
+.exercise-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+}
+
+/* Clickable Badges */
+.clickable-badge {
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.clickable-badge:hover {
+    opacity: 0.85;
+    transform: scale(1.05);
+}
+
+.clickable-badge:active {
+    transform: scale(0.98);
+}
+
+/* Difficulty Level Badge Colors */
+.bg-novice-level {
+    background-color: #28a745 !important; /* Bootstrap success green */
+}
+
+.bg-beginner-level {
+    background-color: #ffc107 !important; /* Bootstrap warning yellow */
+    color: #212529 !important;
+}
+
+.bg-intermediate-level {
+    background-color: #fd7e14 !important; /* Bootstrap orange */
+}
+
+.bg-advanced-level {
+    background-color: #dc3545 !important; /* Bootstrap danger red */
+}
+</style>
 {% endblock %}
