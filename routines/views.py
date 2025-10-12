@@ -90,37 +90,62 @@ def routine_create(request):
         messages.success(request, f'Routine "{name}" created successfully!')
         return redirect('routines:routine_detail', routine_id=routine.id)
     
-    # GET request - show form with filtering (using same logic as exercise_list)
-    exercises = Exercise.objects.all().order_by('title', 'name')
-    
-    # Get unique muscle groups from actual exercises
+    # GET request - show form with limited initial exercises for performance
+    # Get unique muscle groups from actual exercises (for filter dropdowns)
     muscle_values = Exercise.objects.exclude(muscle='').values_list('muscle', flat=True).distinct().order_by('muscle')
     muscle_groups = [{'name': muscle} for muscle in muscle_values if muscle]
-    
-    # Apply filters (exact same logic as exercise_list view)
+
+    # Check if any filters are applied
     search = request.GET.get('search', '')
     muscle_group = request.GET.get('muscle_group', '')
     equipment = request.GET.get('equipment', '')
     difficulty = request.GET.get('difficulty', '')
-    
-    if search:
-        exercises = exercises.filter(
-            Q(name__icontains=search) | 
-            Q(title__icontains=search) |
-            Q(description__icontains=search) |
-            Q(muscle__icontains=search)
-        ).distinct()
-    
-    if muscle_group:
-        exercises = exercises.filter(
-            Q(muscle__icontains=muscle_group)
-        ).distinct()
-    
-    if equipment:
-        exercises = exercises.filter(equipment=equipment)
-    
-    if difficulty:
-        exercises = exercises.filter(difficulty=difficulty)
+
+    # If no filters applied, show popular exercises; otherwise use AJAX
+    has_filters = any([search, muscle_group, equipment, difficulty])
+
+    if has_filters:
+        # Apply filters (same logic as exercise_list view)
+        exercises = Exercise.objects.all().order_by('title', 'name')
+
+        if search:
+            exercises = exercises.filter(
+                Q(name__icontains=search) |
+                Q(title__icontains=search) |
+                Q(description__icontains=search) |
+                Q(muscle__icontains=search)
+            ).distinct()
+
+        if muscle_group:
+            exercises = exercises.filter(
+                Q(muscle__icontains=muscle_group)
+            ).distinct()
+
+        if equipment:
+            exercises = exercises.filter(equipment=equipment)
+
+        if difficulty:
+            exercises = exercises.filter(difficulty=difficulty)
+    else:
+        # Show only 12 popular exercises initially (no filters applied)
+        # Choose common exercises across different muscle groups for better UX
+        popular_exercises = [
+            'push-up', 'squat', 'pull-up', 'plank', 'deadlift', 'bench press',
+            'bicep curl', 'tricep', 'shoulder press', 'lunge', 'crunch', 'row'
+        ]
+
+        exercises = Exercise.objects.filter(
+            Q(name__icontains='push') | Q(title__icontains='push') |
+            Q(name__icontains='squat') | Q(title__icontains='squat') |
+            Q(name__icontains='pull') | Q(title__icontains='pull') |
+            Q(name__icontains='plank') | Q(title__icontains='plank') |
+            Q(name__icontains='curl') | Q(title__icontains='curl') |
+            Q(name__icontains='press') | Q(title__icontains='press') |
+            Q(name__icontains='lunge') | Q(title__icontains='lunge') |
+            Q(name__icontains='crunch') | Q(title__icontains='crunch') |
+            Q(name__icontains='row') | Q(title__icontains='row') |
+            Q(name__icontains='deadlift') | Q(title__icontains='deadlift')
+        ).distinct().order_by('title', 'name')[:12]
     
     context = {
         'exercises': exercises,

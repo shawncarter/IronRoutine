@@ -1,5 +1,6 @@
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
+from django.db.models import Q
 from .models import Exercise, MuscleGroup
 
 
@@ -12,26 +13,33 @@ def exercise_api_list(request):
     - muscle: Filter by muscle group
     - equipment: Filter by equipment type
     - difficulty: Filter by difficulty level
-    - limit: Limit results (default 50)
+    - limit: Limit results (default 12)
     """
-    exercises = Exercise.objects.all()
-    
-    # Apply filters
+    exercises = Exercise.objects.all().order_by('title', 'name')
+
+    # Apply filters (same logic as views.py)
     search = request.GET.get('search', '')
-    muscle = request.GET.get('muscle', '')
+    muscle_group = request.GET.get('muscle_group', '')
     equipment = request.GET.get('equipment', '')
     difficulty = request.GET.get('difficulty', '')
-    limit = int(request.GET.get('limit', 50))
-    
+    limit = int(request.GET.get('limit', 12))
+
     if search:
-        exercises = exercises.filter(title__icontains=search)
-    
-    if muscle:
-        exercises = exercises.filter(muscle__icontains=muscle)
-    
+        exercises = exercises.filter(
+            Q(name__icontains=search) |
+            Q(title__icontains=search) |
+            Q(description__icontains=search) |
+            Q(muscle__icontains=search)
+        ).distinct()
+
+    if muscle_group:
+        exercises = exercises.filter(
+            Q(muscle__icontains=muscle_group)
+        ).distinct()
+
     if equipment:
         exercises = exercises.filter(equipment=equipment)
-    
+
     if difficulty:
         exercises = exercises.filter(difficulty=difficulty)
     
@@ -43,15 +51,20 @@ def exercise_api_list(request):
     for exercise in exercises:
         data.append({
             'id': exercise.id,
-            'title': exercise.title,
+            'title': exercise.title or exercise.name,
+            'name': exercise.name,
             'slug': exercise.slug,
             'equipment': exercise.equipment,
+            'equipment_display': exercise.get_equipment_display(),
             'muscle': exercise.muscle,
             'difficulty': exercise.difficulty,
             'has_videos': exercise.has_videos,
+            'description': exercise.description,
             'instructions': exercise.get_instructions_list(),
             'male_url': exercise.male_url,
             'female_url': exercise.female_url,
+            'male_videos': exercise.male_videos,
+            'female_videos': exercise.female_videos,
         })
     
     return JsonResponse({

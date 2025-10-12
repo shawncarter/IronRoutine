@@ -5,32 +5,31 @@
 {% block content %}
 <h1 class="text-3xl font-bold mb-6">Exercise Library</h1>
 
-<!-- Search and Filters -->
+<!-- Search and Filters (AJAX-enabled) -->
 <div class="search-filters">
-    <form method="get" class="filter-row" id="exercise-filter-form">
+    <div class="filter-row">
         <div class="form-group">
             <label for="search" class="form-label">Search Exercises</label>
-            <input type="text" id="search" name="search" class="form-control" 
-                   value="{{ current_search }}" placeholder="Search by name or description..."
-                   onkeyup="debounceSubmit()">
+            <input type="text" id="search" name="search" class="form-control"
+                   value="{{ current_search }}" placeholder="Search by name or description...">
         </div>
-        
+
         <div class="form-group">
             <label for="muscle_group" class="form-label">Muscle Group</label>
-            <select id="muscle_group" name="muscle_group" class="form-control form-select" onchange="this.form.submit()">
+            <select id="muscle_group" name="muscle_group" class="form-control form-select">
                 <option value="">All Muscle Groups</option>
                 {% for muscle_group in muscle_groups %}
-                    <option value="{{ muscle_group.name }}" 
+                    <option value="{{ muscle_group.name }}"
                             {% if current_muscle_group == muscle_group.name %}selected{% endif %}>
                         {{ muscle_group.name|title }}
                     </option>
                 {% endfor %}
             </select>
         </div>
-        
+
         <div class="form-group">
             <label for="equipment" class="form-label">Equipment</label>
-            <select id="equipment" name="equipment" class="form-control form-select" onchange="this.form.submit()">
+            <select id="equipment" name="equipment" class="form-control form-select">
                 <option value="">All Equipment</option>
                 <option value="barbell" {% if current_equipment == 'barbell' %}selected{% endif %}>Barbell</option>
                 <option value="dumbbells" {% if current_equipment == 'dumbbells' %}selected{% endif %}>Dumbbells</option>
@@ -42,10 +41,10 @@
                 <option value="stretches" {% if current_equipment == 'stretches' %}selected{% endif %}>Stretches</option>
             </select>
         </div>
-        
+
         <div class="form-group">
             <label for="difficulty" class="form-label">Difficulty</label>
-            <select id="difficulty" name="difficulty" class="form-control form-select" onchange="this.form.submit()">
+            <select id="difficulty" name="difficulty" class="form-control form-select">
                 <option value="">All Levels</option>
                 <option value="Novice" {% if current_difficulty == 'Novice' %}selected{% endif %}>Novice</option>
                 <option value="Beginner" {% if current_difficulty == 'Beginner' %}selected{% endif %}>Beginner</option>
@@ -53,58 +52,29 @@
                 <option value="Advanced" {% if current_difficulty == 'Advanced' %}selected{% endif %}>Advanced</option>
             </select>
         </div>
-        
+
         <div class="form-group">
-            <a href="{% url 'exercises:exercise_list' %}" class="btn btn-secondary">Clear Filters</a>
+            <button type="button" class="btn btn-secondary" onclick="exerciseFilter.clearAllFilters()">Clear Filters</button>
         </div>
-    </form>
+    </div>
 </div>
 
-<script>
-let debounceTimer;
-function debounceSubmit() {
-    clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(function() {
-        document.getElementById('exercise-filter-form').submit();
-    }, 500);
-}
-
-// Add click handlers for badge filtering
-document.addEventListener('DOMContentLoaded', function() {
-    document.querySelectorAll('.clickable-badge').forEach(badge => {
-        badge.addEventListener('click', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            
-            const filterType = this.dataset.filterType;
-            const filterValue = this.dataset.filterValue;
-            
-            // Build URL with the filter parameter
-            const url = new URL(window.location.href);
-            
-            if (filterType === 'difficulty') {
-                url.searchParams.set('difficulty', filterValue);
-            } else if (filterType === 'muscle') {
-                url.searchParams.set('muscle_group', filterValue);
-            } else if (filterType === 'equipment') {
-                url.searchParams.set('equipment', filterValue);
-            }
-            
-            // Navigate to the filtered URL
-            window.location.href = url.toString();
-        });
-    });
-});
-</script>
+<script src="{% load static %}{% static 'js/ajax-filters.js' %}"></script>
 
 <!-- Results Count -->
 <div class="mb-4">
-    <p class="text-muted">
+    <p class="text-muted results-count">
         Showing {{ exercises.count }} exercise{{ exercises.count|pluralize }}
         {% if current_search or current_muscle_group or current_difficulty %}
             (filtered)
         {% endif %}
     </p>
+    <div class="loading-indicator" style="display: none;">
+        <div class="spinner-border spinner-border-sm" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <span class="ms-2">Loading exercises...</span>
+    </div>
 </div>
 
 <!-- Exercise Grid -->
@@ -258,6 +228,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
 .bg-advanced-level {
     background-color: #dc3545 !important; /* Bootstrap danger red */
+}
+
+/* Loading states */
+.exercise-list.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.loading-indicator {
+    display: flex;
+    align-items: center;
+    color: #6c757d;
+    font-size: 0.9rem;
 }
 </style>
 {% endblock %}
