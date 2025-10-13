@@ -24,6 +24,7 @@ def home_redirect(request):
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', home_redirect, name='home'),
+    path('accounts/', include('accounts.urls')),
     path('exercises/', include('exercises.urls')),
     path('routines/', include('routines.urls')),
     path('workouts/', include('workouts.urls')),

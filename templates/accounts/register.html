@@ -1,0 +1,186 @@
+{% extends 'base.html' %}
+
+{% block title %}Register - IronRoutine{% endblock %}
+
+{% block content %}
+<div class="max-w-md mx-auto">
+    <div class="card">
+        <div class="card-header">
+            <h2 class="text-xl font-bold">Create Account</h2>
+        </div>
+        <div class="card-body">
+            <form method="post" id="registerForm">
+                {% csrf_token %}
+                
+                <div class="mb-4">
+                    <label for="id_username" class="form-label">Username</label>
+                    {{ form.username }}
+                    {% if form.username.errors %}
+                        <div class="text-danger text-sm mt-1">
+                            {{ form.username.errors }}
+                        </div>
+                    {% endif %}
+                    {% if form.username.help_text %}
+                        <div class="text-muted text-sm mt-1">{{ form.username.help_text }}</div>
+                    {% endif %}
+                </div>
+                
+                <div class="mb-4">
+                    <label for="id_password1" class="form-label">Password</label>
+                    {{ form.password1 }}
+                    {% if form.password1.errors %}
+                        <div class="text-danger text-sm mt-1">
+                            {{ form.password1.errors }}
+                        </div>
+                    {% endif %}
+                    {% if form.password1.help_text %}
+                        <div class="text-muted text-sm mt-1">{{ form.password1.help_text }}</div>
+                    {% endif %}
+                </div>
+                
+                <div class="mb-4">
+                    <label for="id_password2" class="form-label">Confirm Password</label>
+                    {{ form.password2 }}
+                    {% if form.password2.errors %}
+                        <div class="text-danger text-sm mt-1">
+                            {{ form.password2.errors }}
+                        </div>
+                    {% endif %}
+                    {% if form.password2.help_text %}
+                        <div class="text-muted text-sm mt-1">{{ form.password2.help_text }}</div>
+                    {% endif %}
+                </div>
+                
+                <div class="mb-4">
+                    <label class="flex items-center">
+                        <input type="checkbox" id="rememberPassword" class="mr-2" checked>
+                        <span class="text-sm">Remember my password for 1 year</span>
+                    </label>
+                </div>
+                
+                <button type="submit" class="btn btn-primary w-full">Create Account</button>
+            </form>
+            
+            <div class="mt-4 text-center">
+                <p class="text-sm text-muted">
+                    Already have an account? 
+                    <a href="{% url 'accounts:login' %}" class="text-primary">Sign in here</a>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('registerForm');
+    const rememberCheckbox = document.getElementById('rememberPassword');
+    const usernameField = document.getElementById('id_username');
+    const password1Field = document.getElementById('id_password1');
+    
+    // Save credentials on successful form submit
+    form.addEventListener('submit', function() {
+        if (rememberCheckbox.checked) {
+            // We'll save after successful registration via a success page or redirect
+            sessionStorage.setItem('ironroutine_save_credentials', 'true');
+            sessionStorage.setItem('ironroutine_new_username', usernameField.value);
+            sessionStorage.setItem('ironroutine_new_password', password1Field.value);
+        }
+    });
+    
+    // Check if we just registered and need to save credentials
+    if (sessionStorage.getItem('ironroutine_save_credentials') === 'true') {
+        const username = sessionStorage.getItem('ironroutine_new_username');
+        const password = sessionStorage.getItem('ironroutine_new_password');
+        
+        if (username && password) {
+            localStorage.setItem('ironroutine_remember_password', 'true');
+            localStorage.setItem('ironroutine_username', username);
+            localStorage.setItem('ironroutine_password', password);
+            
+            // Set expiration date (1 year from now)
+            const expirationDate = new Date();
+            expirationDate.setFullYear(expirationDate.getFullYear() + 1);
+            localStorage.setItem('ironroutine_password_expires', expirationDate.toISOString());
+        }
+        
+        // Clear session storage
+        sessionStorage.removeItem('ironroutine_save_credentials');
+        sessionStorage.removeItem('ironroutine_new_username');
+        sessionStorage.removeItem('ironroutine_new_password');
+    }
+});
+</script>
+
+<style>
+.form-label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: #374151;
+}
+
+.card {
+    background: white;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e5e7eb;
+}
+
+.card-header {
+    padding: 1.5rem 1.5rem 0;
+    border-bottom: 1px solid #e5e7eb;
+    margin-bottom: 1.5rem;
+}
+
+.card-body {
+    padding: 0 1.5rem 1.5rem;
+}
+
+#id_username, #id_password1, #id_password2 {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #d1d5db;
+    border-radius: 0.375rem;
+    font-size: 1rem;
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+#id_username:focus, #id_password1:focus, #id_password2:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.btn {
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.375rem;
+    font-weight: 600;
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+    transition: all 0.15s ease-in-out;
+}
+
+.btn-primary {
+    background: #667eea;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #5a67d8;
+}
+
+.text-primary {
+    color: #667eea;
+}
+
+.text-danger {
+    color: #ef4444;
+}
+
+.text-muted {
+    color: #6b7280;
+}
+</style>
+{% endblock %}

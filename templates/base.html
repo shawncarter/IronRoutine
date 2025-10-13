@@ -19,7 +19,18 @@
             <ul class="nav-menu">
                 <li><a href="{% url 'routines:routine_list' %}" class="nav-link">Routines</a></li>
                 <li><a href="{% url 'exercises:exercise_list' %}" class="nav-link">Exercises</a></li>
-                <li><a href="{% url 'workouts:workout_history' %}" class="nav-link">History</a></li>
+                {% if user.is_authenticated %}
+                    <li><a href="{% url 'workouts:workout_history' %}" class="nav-link">History</a></li>
+                {% endif %}
+            </ul>
+            <ul class="nav-menu nav-auth">
+                {% if user.is_authenticated %}
+                    <li><a href="{% url 'accounts:profile' %}" class="nav-link">{{ user.username }}</a></li>
+                    <li><a href="{% url 'accounts:logout' %}" class="nav-link">Logout</a></li>
+                {% else %}
+                    <li><a href="{% url 'accounts:login' %}" class="nav-link">Login</a></li>
+                    <li><a href="{% url 'accounts:register' %}" class="nav-link nav-link-register">Sign Up</a></li>
+                {% endif %}
             </ul>
         </div>
     </nav>

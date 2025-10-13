@@ -38,10 +38,19 @@
     
     <!-- Action Buttons -->
     <div class="flex gap-4 mb-6">
+        {% if user.is_authenticated %}
         <a href="{% url 'routines:routine_start' routine.id %}" 
            class="btn btn-success btn-lg flex-1">
             🏋️ Start This Workout
         </a>
+        {% else %}
+        <a href="{% url 'accounts:login' %}" 
+           class="btn btn-success btn-lg flex-1">
+            🏋️ Login to Start Workout
+        </a>
+        {% endif %}
+        
+        {% if can_edit %}
         <a href="{% url 'routines:routine_edit' routine.id %}" 
            class="btn btn-secondary">
             Edit
@@ -50,6 +59,12 @@
            class="btn btn-danger">
             Delete
         </a>
+        {% elif routine.is_public and user.is_authenticated %}
+        <a href="{% url 'routines:routine_copy' routine.id %}" 
+           class="btn btn-info">
+            Copy to My Routines
+        </a>
+        {% endif %}
     </div>
     
     <!-- Exercise List -->
@@ -61,22 +76,40 @@
                     <div class="exercise-progress">
                         <div class="flex justify-between items-start mb-3">
                             <div class="flex-1">
-                                <h3 class="text-lg font-semibold">{{ routine_exercise.exercise.name }}</h3>
-                                <p class="text-muted mb-2">{{ routine_exercise.exercise.description }}</p>
-                                
-                                <!-- Muscle Groups -->
-                                <div class="mb-2">
-                                    {% for muscle_group in routine_exercise.exercise.muscle_groups.all %}
-                                        <span class="muscle-group-tag">{{ muscle_group.name }}</span>
-                                    {% endfor %}
+                                <div class="flex items-center gap-3 mb-2">
+                                    <h3 class="text-lg font-semibold">{{ routine_exercise.exercise.title|default:routine_exercise.exercise.name }}</h3>
+                                    
+                                    <!-- Video and Exercise Links -->
+                                    <div class="flex gap-2">
+                                        {% if routine_exercise.exercise.has_videos %}
+                                        <button type="button" class="btn btn-xs btn-info view-video-btn"
+                                                data-exercise-id="{{ routine_exercise.exercise.id }}"
+                                                data-exercise-title="{{ routine_exercise.exercise.title|default:routine_exercise.exercise.name }}"
+                                                data-male-front="{{ routine_exercise.exercise.male_videos.front }}"
+                                                data-male-side="{{ routine_exercise.exercise.male_videos.side }}"
+                                                data-female-front="{{ routine_exercise.exercise.female_videos.front }}"
+                                                data-female-side="{{ routine_exercise.exercise.female_videos.side }}"
+                                                title="Preview exercise videos">
+                                            <i class="bi bi-play-circle"></i> Videos
+                                        </button>
+                                        {% endif %}
+                                        
+                                        <a href="{% url 'exercises:exercise_detail' routine_exercise.exercise.id %}?from_routine={{ routine.id }}" 
+                                           class="btn btn-xs btn-outline" 
+                                           title="View full exercise details">
+                                            <i class="bi bi-info-circle"></i> Details
+                                        </a>
+                                    </div>
                                 </div>
                                 
-                                <!-- Equipment -->
-                                {% if routine_exercise.exercise.equipment_needed %}
-                                    <div class="text-sm text-muted">
-                                        <strong>Equipment:</strong> {{ routine_exercise.exercise.equipment_needed }}
-                                    </div>
-                                {% endif %}
+                                <!-- Badges -->
+                                <div class="flex flex-wrap gap-2 mb-2">
+                                    <span class="badge badge-primary">{{ routine_exercise.exercise.get_equipment_display }}</span>
+                                    {% if routine_exercise.exercise.muscle %}
+                                        <span class="badge badge-secondary">{{ routine_exercise.exercise.muscle|title }}</span>
+                                    {% endif %}
+                                    <span class="badge badge-{{ routine_exercise.exercise.difficulty|lower }}">{{ routine_exercise.exercise.difficulty }}</span>
+                                </div>
                             </div>
                             
                             <div class="text-right">
@@ -87,10 +120,20 @@
                         </div>
                         
                         <!-- Instructions -->
+                        {% with instructions=routine_exercise.exercise.get_instructions_list %}
+                        {% if instructions %}
                         <div class="bg-gray-50 p-3 rounded-lg">
                             <h4 class="font-semibold mb-2">Instructions:</h4>
-                            <p class="text-sm">{{ routine_exercise.exercise.instructions }}</p>
+                            <ol class="instruction-list">
+                                {% for instruction in instructions %}
+                                <li class="instruction-item text-sm">
+                                    {{ instruction }}
+                                </li>
+                                {% endfor %}
+                            </ol>
                         </div>
+                        {% endif %}
+                        {% endwith %}
                         
                         {% if routine_exercise.target_reps or routine_exercise.target_weight %}
                             <div class="mt-3 flex gap-4 text-sm">
@@ -137,5 +180,318 @@ hr {
     border: none;
     border-top: 1px solid #e5e7eb;
 }
+
+/* Instruction List Styling */
+.instruction-list {
+    list-style: none;
+    counter-reset: instruction-counter;
+    padding-left: 0;
+}
+
+.instruction-item {
+    counter-increment: instruction-counter;
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    background: white;
+    border-left: 3px solid #667eea;
+    border-radius: 4px;
+    position: relative;
+    padding-left: 2.5rem;
+}
+
+.instruction-item::before {
+    content: counter(instruction-counter);
+    position: absolute;
+    left: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    background: #667eea;
+    color: white;
+    width: 1.25rem;
+    height: 1.25rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 0.75rem;
+}
+
+/* Badge Styles */
+.badge {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.badge-primary {
+    background: #667eea;
+    color: white;
+}
+
+.badge-secondary {
+    background: #718096;
+    color: white;
+}
+
+.badge-novice, .badge-beginner {
+    background: #48bb78;
+    color: white;
+}
+
+.badge-intermediate {
+    background: #ed8936;
+    color: white;
+}
+
+.badge-advanced {
+    background: #f56565;
+    color: white;
+}
+
+/* Button Styles */
+.btn-xs {
+    padding: 0.125rem 0.5rem;
+    font-size: 0.75rem;
+    line-height: 1.2;
+    border-radius: 0.2rem;
+}
+
+.btn-info {
+    background: #4299e1;
+    color: white;
+    border: none;
+}
+
+.btn-info:hover {
+    background: #3182ce;
+}
+
+.btn-outline {
+    border: 1px solid #667eea;
+    color: #667eea;
+    background: white;
+}
+
+.btn-outline:hover {
+    background: #667eea;
+    color: white;
+}
+
+/* Modal Styles */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+}
+
+.modal-content {
+    position: relative;
+    background: white;
+    border-radius: 12px;
+    max-width: 90%;
+    max-height: 90vh;
+    overflow: auto;
+    z-index: 1001;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: bold;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 2rem;
+    cursor: pointer;
+    color: #718096;
+    padding: 0;
+    width: 2rem;
+    height: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+
+.modal-close:hover {
+    color: #2d3748;
+}
+
+.modal-body {
+    padding: 1.5rem;
+}
+
+.video-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+}
+
+.video-container {
+    flex: 1;
+    min-width: 0;
+}
+
+@media (max-width: 768px) {
+    .video-grid {
+        grid-template-columns: 1fr;
+    }
+}
 </style>
+
+<!-- Video Preview Modal -->
+<div id="video-modal" class="modal" style="display: none;">
+    <div class="modal-overlay" onclick="closeVideoModal()"></div>
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="modal-exercise-title">Exercise Videos</h3>
+            <div class="flex gap-2">
+                <button type="button" class="btn btn-sm btn-primary" id="modal-male-btn" onclick="switchGender('male')">
+                    Male
+                </button>
+                <button type="button" class="btn btn-sm btn-outline" id="modal-female-btn" onclick="switchGender('female')">
+                    Female
+                </button>
+                <button type="button" class="modal-close" onclick="closeVideoModal()">&times;</button>
+            </div>
+        </div>
+        <div class="modal-body">
+            <div class="video-grid">
+                <div class="video-container">
+                    <h4 class="font-semibold mb-2">Front View</h4>
+                    <video id="modal-video-front" controls autoplay muted loop class="w-full rounded-lg" preload="auto" style="max-height: 400px; background: #000;">
+                        <source id="modal-video-front-source" src="" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>
+                </div>
+                <div class="video-container">
+                    <h4 class="font-semibold mb-2">Side View</h4>
+                    <video id="modal-video-side" controls autoplay muted loop class="w-full rounded-lg" preload="auto" style="max-height: 400px; background: #000;">
+                        <source id="modal-video-side-source" src="" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Add click handlers for video buttons
+    document.querySelectorAll('.view-video-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const title = this.dataset.exerciseTitle;
+            const maleFront = this.dataset.maleFront;
+            const maleSide = this.dataset.maleSide;
+            const femaleFront = this.dataset.femaleFront;
+            const femaleSide = this.dataset.femaleSide;
+            
+            currentMaleVideos = { front: maleFront, side: maleSide };
+            currentFemaleVideos = { front: femaleFront, side: femaleSide };
+            
+            openVideoModal(title);
+        });
+    });
+});
+
+// Video Modal Functionality
+let currentMaleVideos = { front: '', side: '' };
+let currentFemaleVideos = { front: '', side: '' };
+let currentGender = 'male';
+
+function openVideoModal(title) {
+    document.getElementById('modal-exercise-title').textContent = title;
+    document.getElementById('video-modal').style.display = 'flex';
+    switchGender('male');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeVideoModal() {
+    const modal = document.getElementById('video-modal');
+    modal.style.display = 'none';
+    document.body.style.overflow = '';
+    
+    const frontVideo = document.getElementById('modal-video-front');
+    const sideVideo = document.getElementById('modal-video-side');
+    frontVideo.pause();
+    sideVideo.pause();
+    frontVideo.currentTime = 0;
+    sideVideo.currentTime = 0;
+}
+
+function switchGender(gender) {
+    currentGender = gender;
+    const videos = gender === 'male' ? currentMaleVideos : currentFemaleVideos;
+    
+    const maleBtn = document.getElementById('modal-male-btn');
+    const femaleBtn = document.getElementById('modal-female-btn');
+    
+    if (gender === 'male') {
+        maleBtn.classList.add('btn-primary');
+        maleBtn.classList.remove('btn-outline');
+        femaleBtn.classList.remove('btn-primary');
+        femaleBtn.classList.add('btn-outline');
+    } else {
+        femaleBtn.classList.add('btn-primary');
+        femaleBtn.classList.remove('btn-outline');
+        maleBtn.classList.remove('btn-primary');
+        maleBtn.classList.add('btn-outline');
+    }
+    
+    const frontSource = document.getElementById('modal-video-front-source');
+    const sideSource = document.getElementById('modal-video-side-source');
+    const frontVideo = document.getElementById('modal-video-front');
+    const sideVideo = document.getElementById('modal-video-side');
+    
+    if (videos.front) {
+        const frontPath = videos.front.replace('videos/', '');
+        frontSource.src = '/static/' + frontPath;
+        frontVideo.load();
+        frontVideo.play();
+    }
+    
+    if (videos.side) {
+        const sidePath = videos.side.replace('videos/', '');
+        sideSource.src = '/static/' + sidePath;
+        sideVideo.load();
+        sideVideo.play();
+    }
+}
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeVideoModal();
+    }
+});
+</script>
 {% endblock %}

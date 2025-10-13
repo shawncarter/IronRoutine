@@ -42,6 +42,10 @@ body {
     gap: 2rem;
 }
 
+.nav-auth {
+    gap: 1rem;
+}
+
 .nav-link {
     color: white;
     text-decoration: none;
@@ -51,6 +55,18 @@ body {
 
 .nav-link:hover {
     opacity: 0.8;
+}
+
+.nav-link-register {
+    background: rgba(255, 255, 255, 0.2);
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.nav-link-register:hover {
+    background: rgba(255, 255, 255, 0.3);
+    opacity: 1;
 }
 
 /* Main content */

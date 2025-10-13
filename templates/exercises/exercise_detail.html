@@ -2,58 +2,66 @@
 
 {% block title %}{{ exercise.title }} - IronRoutine{% endblock %}
 
+{% csrf_token %}
+
 {% block content %}
 <div class="max-w-6xl mx-auto">
-    <!-- Back Button -->
-    <div class="mb-4">
-        <a href="{% url 'exercises:exercise_list' %}" class="btn btn-secondary">
-            ← Back to Exercises
-        </a>
-    </div>
-
-    <!-- Exercise Header -->
-    <div class="card mb-6">
+    <!-- Exercise Header with Back Button -->
+    <div class="card mb-3">
         <div class="card-body">
-            <div class="flex justify-between items-start mb-4">
-                <div>
-                    <h1 class="text-3xl font-bold mb-2">{{ exercise.title }}</h1>
-                    <div class="flex flex-wrap gap-2 mb-3">
-                        <span class="badge badge-primary">{{ exercise.get_equipment_display }}</span>
-                        <span class="badge badge-secondary">{{ exercise.muscle|title }}</span>
-                        <span class="badge badge-{{ exercise.difficulty|lower }}">{{ exercise.difficulty }}</span>
-                    </div>
+            <div class="flex justify-between items-start mb-3">
+                <div class="flex items-center gap-3">
+                    <a href="{{ back_url }}" class="btn btn-sm btn-secondary">
+                        {{ back_text }}
+                    </a>
+                    <h1 class="text-2xl font-bold mb-0">{{ exercise.title }}</h1>
                 </div>
                 
-                {% if exercise.male_url or exercise.female_url %}
-                <div class="flex gap-2">
-                    {% if exercise.male_url %}
-                    <a href="{{ exercise.male_url }}" target="_blank" class="btn btn-sm btn-outline" title="Opens external video demonstration">
-                        🔗 View Male Demo
-                    </a>
+                <div class="flex gap-2 items-center">
+                    {% if user.is_authenticated %}
+                    <button type="button" class="btn btn-sm btn-success add-to-routine-btn" 
+                            data-exercise-id="{{ exercise.id }}" 
+                            data-exercise-name="{{ exercise.title }}">
+                        <i class="bi bi-plus-circle"></i> Add to Routine
+                    </button>
                     {% endif %}
-                    {% if exercise.female_url %}
-                    <a href="{{ exercise.female_url }}" target="_blank" class="btn btn-sm btn-outline" title="Opens external video demonstration">
-                        🔗 View Female Demo
-                    </a>
+                    
+                    {% if exercise.male_url or exercise.female_url %}
+                    <div class="flex gap-1">
+                        {% if exercise.male_url %}
+                        <a href="{{ exercise.male_url }}" target="_blank" class="btn btn-xs btn-outline" title="Opens external video demonstration">
+                            🔗 Male
+                        </a>
+                        {% endif %}
+                        {% if exercise.female_url %}
+                        <a href="{{ exercise.female_url }}" target="_blank" class="btn btn-xs btn-outline" title="Opens external video demonstration">
+                            🔗 Female
+                        </a>
+                        {% endif %}
+                    </div>
                     {% endif %}
                 </div>
-                {% endif %}
+            </div>
+            <div class="flex flex-wrap gap-2">
+                <span class="badge badge-primary">{{ exercise.get_equipment_display }}</span>
+                <span class="badge badge-secondary">{{ exercise.muscle|title }}</span>
+                <span class="badge badge-{{ exercise.difficulty|lower }}">{{ exercise.difficulty }}</span>
             </div>
         </div>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <!-- Video Section -->
         {% if exercise.has_videos and videos %}
         <div class="card">
             <div class="card-header">
                 <div class="flex justify-between items-center">
                     <span>Exercise Videos</span>
-                    <div class="flex gap-2">
-                        <a href="?gender=male" class="btn btn-sm {% if preferred_gender == 'male' %}btn-primary{% else %}btn-outline{% endif %}">
+                    <div class="flex gap-1">
+                        <a href="?gender=male" class="btn btn-xs {% if preferred_gender == 'male' %}btn-primary{% else %}btn-outline{% endif %}">
                             Male
                         </a>
-                        <a href="?gender=female" class="btn btn-sm {% if preferred_gender == 'female' %}btn-primary{% else %}btn-outline{% endif %}">
+                        <a href="?gender=female" class="btn btn-xs {% if preferred_gender == 'female' %}btn-primary{% else %}btn-outline{% endif %}">
                             Female
                         </a>
                     </div>
@@ -63,23 +71,23 @@
                 <div class="video-grid">
                     {% if videos.front %}
                     <div class="video-container">
-                        <h4 class="font-semibold mb-2">Front View</h4>
-                        <video controls autoplay muted loop class="w-full rounded-lg" preload="auto" style="max-height: 500px; background: #000;">
+                        <video controls autoplay muted loop class="w-full rounded-lg" preload="auto" style="max-height: 400px; background: #000;" key="front-{{ exercise.id }}-{{ preferred_gender }}">
                             {% load static %}
-                            <source src="{% static videos.front|slice:'7:' %}" type="video/mp4">
+                            <source src="{% static videos.front|slice:'7:' %}?v={{ exercise.id }}-{{ preferred_gender }}" type="video/mp4">
                             Your browser does not support the video tag.
                         </video>
+                        <h4 class="font-semibold mt-2 text-center text-sm">Front View</h4>
                     </div>
                     {% endif %}
 
                     {% if videos.side %}
                     <div class="video-container">
-                        <h4 class="font-semibold mb-2">Side View</h4>
-                        <video controls autoplay muted loop class="w-full rounded-lg" preload="auto" style="max-height: 500px; background: #000;">
+                        <video controls autoplay muted loop class="w-full rounded-lg" preload="auto" style="max-height: 400px; background: #000;" key="side-{{ exercise.id }}-{{ preferred_gender }}">
                             {% load static %}
-                            <source src="{% static videos.side|slice:'7:' %}" type="video/mp4">
+                            <source src="{% static videos.side|slice:'7:' %}?v={{ exercise.id }}-{{ preferred_gender }}" type="video/mp4">
                             Your browser does not support the video tag.
                         </video>
+                        <h4 class="font-semibold mt-2 text-center text-sm">Side View</h4>
                     </div>
                     {% endif %}
                 </div>
@@ -246,7 +254,7 @@
 .video-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 1.5rem;
+    gap: 1rem;
 }
 
 .video-container {
@@ -275,8 +283,266 @@ video {
     color: white;
 }
 
+.btn-xs {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    border-radius: 0.25rem;
+}
+
 .text-success {
     color: #48bb78;
 }
+
+.btn-success {
+    background: #10b981;
+    color: white;
+    border: none;
+}
+
+.btn-success:hover {
+    background: #059669;
+}
+
+/* Modal Styles */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+}
+
+.modal-content {
+    position: relative;
+    background: white;
+    border-radius: 12px;
+    max-width: 90%;
+    max-height: 90vh;
+    overflow: auto;
+    z-index: 1001;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    min-width: 400px;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: bold;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #718096;
+    padding: 0;
+    width: 1.5rem;
+    height: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+
+.modal-close:hover {
+    color: #2d3748;
+}
+
+.modal-body {
+    padding: 1.5rem;
+}
+
+.routine-option {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    margin-bottom: 0.5rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.routine-option:hover {
+    border-color: #667eea;
+    background: #f8f9fa;
+}
+
+.routine-option h4 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.routine-option p {
+    margin: 0;
+    font-size: 0.875rem;
+    color: #6b7280;
+}
 </style>
+
+<!-- Add to Routine Modal -->
+<div id="routine-modal" class="modal" style="display: none;">
+    <div class="modal-overlay" onclick="closeRoutineModal()"></div>
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Add to Routine</h3>
+            <button type="button" class="modal-close" onclick="closeRoutineModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div id="routine-list">
+                <div class="text-center text-muted py-4">
+                    Loading your routines...
+                </div>
+            </div>
+            <div class="mt-3 pt-3 border-t">
+                <a href="{% url 'routines:routine_create' %}" class="btn btn-primary w-full">
+                    <i class="bi bi-plus-circle"></i> Create New Routine
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Add to routine functionality
+    const addToRoutineBtn = document.querySelector('.add-to-routine-btn');
+    if (addToRoutineBtn) {
+        addToRoutineBtn.addEventListener('click', function() {
+            const exerciseId = this.dataset.exerciseId;
+            const exerciseName = this.dataset.exerciseName;
+            openRoutineModal(exerciseId, exerciseName);
+        });
+    }
+});
+
+function openRoutineModal(exerciseId, exerciseName) {
+    const modal = document.getElementById('routine-modal');
+    const routineList = document.getElementById('routine-list');
+    
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+    
+    // Fetch user's routines
+    fetch('/routines/api/user-routines/', {
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || '',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.routines && data.routines.length > 0) {
+            routineList.innerHTML = data.routines.map(routine => `
+                <div class="routine-option" onclick="addToExistingRoutine(${routine.id}, ${exerciseId}, '${exerciseName}')">
+                    <div>
+                        <h4>${routine.name}</h4>
+                        <p>${routine.exercise_count} exercises • ${routine.estimated_duration} min</p>
+                    </div>
+                    <div>
+                        <i class="bi bi-plus-circle text-success"></i>
+                    </div>
+                </div>
+            `).join('');
+        } else {
+            routineList.innerHTML = `
+                <div class="text-center text-muted py-4">
+                    <i class="bi bi-clipboard-x fs-1 d-block mb-2 opacity-50"></i>
+                    <p>You don't have any routines yet.</p>
+                    <p class="small">Create your first routine to get started!</p>
+                </div>
+            `;
+        }
+    })
+    .catch(error => {
+        console.error('Error fetching routines:', error);
+        routineList.innerHTML = `
+            <div class="text-center text-danger py-4">
+                <p>Error loading routines. Please try again.</p>
+            </div>
+        `;
+    });
+}
+
+function closeRoutineModal() {
+    const modal = document.getElementById('routine-modal');
+    modal.style.display = 'none';
+    document.body.style.overflow = '';
+}
+
+function addToExistingRoutine(routineId, exerciseId, exerciseName) {
+    // Add exercise to existing routine via AJAX
+    fetch(`/routines/${routineId}/add-exercise/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || '',
+        },
+        body: JSON.stringify({
+            exercise_id: exerciseId
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            closeRoutineModal();
+            
+            // Show success message
+            const successDiv = document.createElement('div');
+            successDiv.className = 'alert alert-success alert-dismissible fade show';
+            successDiv.innerHTML = `
+                <strong>Success!</strong> "${exerciseName}" has been added to your routine.
+                <a href="/routines/${routineId}/" class="alert-link">View routine</a>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            
+            const container = document.querySelector('.max-w-6xl');
+            container.insertBefore(successDiv, container.firstChild);
+            
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                if (successDiv.parentNode) {
+                    successDiv.remove();
+                }
+            }, 5000);
+        } else {
+            alert(data.message || 'Failed to add exercise to routine');
+        }
+    })
+    .catch(error => {
+        console.error('Error adding exercise:', error);
+        alert('Error adding exercise to routine');
+    });
+}
+
+// Close modal on Escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeRoutineModal();
+    }
+});
+</script>
 {% endblock %}

@@ -1,59 +1,178 @@
 {% extends 'base.html' %}
 
-{% block title %}My Routines - IronRoutine{% endblock %}
+{% block title %}{% if user.is_authenticated %}My Routines{% else %}Workout Routines{% endif %} - IronRoutine{% endblock %}
 
 {% block content %}
 <div class="flex justify-between items-center mb-4">
-    <h1 class="text-3xl font-bold">My Routines</h1>
+    <h1 class="text-3xl font-bold">
+        {% if user.is_authenticated %}My Routines{% else %}Workout Routines{% endif %}
+    </h1>
+    {% if user.is_authenticated %}
     <a href="{% url 'routines:routine_create' %}" class="btn btn-primary">
         + Create New Routine
     </a>
+    {% else %}
+    <a href="{% url 'accounts:login' %}" class="btn btn-primary">
+        Login to Create Routines
+    </a>
+    {% endif %}
 </div>
 
-{% if routines %}
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {% for routine in routines %}
-            <div class="card">
-                <div class="card-body">
-                    <h3 class="card-title">{{ routine.name }}</h3>
-                    
-                    {% if routine.description %}
-                        <p class="card-text">{{ routine.description|truncatewords:20 }}</p>
-                    {% endif %}
-                    
-                    <div class="stats-grid mb-4">
-                        <div class="stat-card">
-                            <div class="stat-value">{{ routine.get_total_exercises }}</div>
-                            <div class="stat-label">Exercises</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-value">{{ routine.get_estimated_duration }}</div>
-                            <div class="stat-label">Est. Minutes</div>
+{% if user.is_authenticated %}
+    <!-- User's Own Routines -->
+    {% if user_routines %}
+        <div class="mb-8">
+            <h2 class="text-xl font-semibold mb-4">Your Routines</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {% for routine in user_routines %}
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="flex justify-between items-start mb-2">
+                                <h3 class="card-title">{{ routine.name }}</h3>
+                                {% if routine.is_public %}
+                                    <span class="badge badge-success">Public</span>
+                                {% else %}
+                                    <span class="badge badge-secondary">Private</span>
+                                {% endif %}
+                            </div>
+                            
+                            {% if routine.description %}
+                                <p class="card-text">{{ routine.description|truncatewords:20 }}</p>
+                            {% endif %}
+                            
+                            <div class="stats-grid mb-4">
+                                <div class="stat-card">
+                                    <div class="stat-value">{{ routine.get_total_exercises }}</div>
+                                    <div class="stat-label">Exercises</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-value">{{ routine.get_estimated_duration }}</div>
+                                    <div class="stat-label">Est. Minutes</div>
+                                </div>
+                            </div>
+                            
+                            <div class="flex gap-2">
+                                <a href="{% url 'routines:routine_start' routine.id %}" 
+                                   class="btn btn-success btn-sm flex-1">
+                                    🏋️ Start
+                                </a>
+                                <a href="{% url 'routines:routine_detail' routine.id %}" 
+                                   class="btn btn-secondary btn-sm">
+                                    View
+                                </a>
+                                <a href="{% url 'routines:routine_edit' routine.id %}" 
+                                   class="btn btn-outline btn-sm">
+                                    Edit
+                                </a>
+                            </div>
                         </div>
                     </div>
-                    
-                    <div class="flex gap-2">
-                        <a href="{% url 'routines:routine_start' routine.id %}" 
-                           class="btn btn-success btn-lg flex-1">
-                            🏋️ Start Workout
-                        </a>
-                        <a href="{% url 'routines:routine_detail' routine.id %}" 
-                           class="btn btn-secondary">
-                            View
-                        </a>
+                {% endfor %}
+            </div>
+        </div>
+    {% else %}
+        <div class="text-center py-8 mb-8">
+            <h2 class="text-xl text-muted mb-4">No personal routines yet</h2>
+            <p class="text-muted mb-6">Create your first workout routine to get started!</p>
+            <a href="{% url 'routines:routine_create' %}" class="btn btn-primary btn-lg">
+                Create Your First Routine
+            </a>
+        </div>
+    {% endif %}
+    
+    <!-- Public Routines from Others -->
+    {% if public_routines %}
+        <div class="mb-8">
+            <h2 class="text-xl font-semibold mb-4">Community Routines</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {% for routine in public_routines %}
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="flex justify-between items-start mb-2">
+                                <h3 class="card-title">{{ routine.name }}</h3>
+                                <span class="badge badge-info">Public</span>
+                            </div>
+                            <p class="text-sm text-muted mb-2">by {{ routine.user.username }}</p>
+                            
+                            {% if routine.description %}
+                                <p class="card-text">{{ routine.description|truncatewords:20 }}</p>
+                            {% endif %}
+                            
+                            <div class="stats-grid mb-4">
+                                <div class="stat-card">
+                                    <div class="stat-value">{{ routine.get_total_exercises }}</div>
+                                    <div class="stat-label">Exercises</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-value">{{ routine.get_estimated_duration }}</div>
+                                    <div class="stat-label">Est. Minutes</div>
+                                </div>
+                            </div>
+                            
+                            <div class="flex gap-2">
+                                <a href="{% url 'routines:routine_detail' routine.id %}" 
+                                   class="btn btn-secondary btn-sm flex-1">
+                                    View
+                                </a>
+                                <a href="{% url 'routines:routine_copy' routine.id %}" 
+                                   class="btn btn-info btn-sm">
+                                    Copy
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
+{% else %}
+    <!-- Anonymous Users - Public Routines Only -->
+    {% if public_routines %}
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {% for routine in public_routines %}
+                <div class="card">
+                    <div class="card-body">
+                        <h3 class="card-title">{{ routine.name }}</h3>
+                        <p class="text-sm text-muted mb-2">by {{ routine.user.username }}</p>
+                        
+                        {% if routine.description %}
+                            <p class="card-text">{{ routine.description|truncatewords:20 }}</p>
+                        {% endif %}
+                        
+                        <div class="stats-grid mb-4">
+                            <div class="stat-card">
+                                <div class="stat-value">{{ routine.get_total_exercises }}</div>
+                                <div class="stat-label">Exercises</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-value">{{ routine.get_estimated_duration }}</div>
+                                <div class="stat-label">Est. Minutes</div>
+                            </div>
+                        </div>
+                        
+                        <div class="flex gap-2">
+                            <a href="{% url 'routines:routine_detail' routine.id %}" 
+                               class="btn btn-secondary btn-sm flex-1">
+                                View
+                            </a>
+                            <a href="{% url 'accounts:login' %}" 
+                               class="btn btn-info btn-sm">
+                                Login to Copy
+                            </a>
+                        </div>
                     </div>
                 </div>
-            </div>
-        {% endfor %}
-    </div>
-{% else %}
-    <div class="text-center py-12">
-        <h2 class="text-2xl text-muted mb-4">No routines yet</h2>
-        <p class="text-muted mb-6">Create your first workout routine to get started!</p>
-        <a href="{% url 'routines:routine_create' %}" class="btn btn-primary btn-lg">
-            Create Your First Routine
-        </a>
-    </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="text-center py-12">
+            <h2 class="text-2xl text-muted mb-4">No public routines available</h2>
+            <p class="text-muted mb-6">Be the first to create and share a routine!</p>
+            <a href="{% url 'accounts:register' %}" class="btn btn-primary btn-lg">
+                Sign Up to Create Routines
+            </a>
+        </div>
+    {% endif %}
 {% endif %}
 
 <div class="mt-8">
@@ -79,4 +198,46 @@
         </div>
     </div>
 </div>
+
+<style>
+/* Badge Styles */
+.badge {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.badge-success {
+    background: #10b981;
+    color: white;
+}
+
+.badge-secondary {
+    background: #6b7280;
+    color: white;
+}
+
+.badge-info {
+    background: #3b82f6;
+    color: white;
+}
+
+.btn-outline {
+    border: 1px solid #667eea;
+    color: #667eea;
+    background: white;
+}
+
+.btn-outline:hover {
+    background: #667eea;
+    color: white;
+}
+
+.btn-sm {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.875rem;
+}
+</style>
 {% endblock %}

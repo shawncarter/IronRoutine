@@ -1,0 +1,175 @@
+{% extends 'base.html' %}
+
+{% block title %}Login - IronRoutine{% endblock %}
+
+{% block content %}
+<div class="max-w-md mx-auto">
+    <div class="card">
+        <div class="card-header">
+            <h2 class="text-xl font-bold">Sign In</h2>
+        </div>
+        <div class="card-body">
+            <form method="post" id="loginForm">
+                {% csrf_token %}
+                
+                <div class="mb-4">
+                    <label for="id_username" class="form-label">Username</label>
+                    {{ form.username }}
+                    {% if form.username.errors %}
+                        <div class="text-danger text-sm mt-1">
+                            {{ form.username.errors }}
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <div class="mb-4">
+                    <label for="id_password" class="form-label">Password</label>
+                    {{ form.password }}
+                    {% if form.password.errors %}
+                        <div class="text-danger text-sm mt-1">
+                            {{ form.password.errors }}
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <div class="mb-4">
+                    <label class="flex items-center">
+                        <input type="checkbox" id="rememberPassword" class="mr-2" checked>
+                        <span class="text-sm">Remember my password for 1 year</span>
+                    </label>
+                </div>
+                
+                <button type="submit" class="btn btn-primary w-full">Sign In</button>
+            </form>
+            
+            <div class="mt-4 text-center">
+                <p class="text-sm text-muted">
+                    Don't have an account? 
+                    <a href="{% url 'accounts:register' %}" class="text-primary">Create one here</a>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('loginForm');
+    const rememberCheckbox = document.getElementById('rememberPassword');
+    const usernameField = document.getElementById('id_username');
+    const passwordField = document.getElementById('id_password');
+    
+    // Load saved credentials
+    if (localStorage.getItem('ironroutine_remember_password') === 'true') {
+        const savedUsername = localStorage.getItem('ironroutine_username');
+        const savedPassword = localStorage.getItem('ironroutine_password');
+        
+        if (savedUsername) usernameField.value = savedUsername;
+        if (savedPassword) passwordField.value = savedPassword;
+        rememberCheckbox.checked = true;
+    }
+    
+    // Save credentials on form submit
+    form.addEventListener('submit', function() {
+        if (rememberCheckbox.checked) {
+            localStorage.setItem('ironroutine_remember_password', 'true');
+            localStorage.setItem('ironroutine_username', usernameField.value);
+            localStorage.setItem('ironroutine_password', passwordField.value);
+            
+            // Set expiration date (1 year from now)
+            const expirationDate = new Date();
+            expirationDate.setFullYear(expirationDate.getFullYear() + 1);
+            localStorage.setItem('ironroutine_password_expires', expirationDate.toISOString());
+        } else {
+            // Clear saved credentials
+            localStorage.removeItem('ironroutine_remember_password');
+            localStorage.removeItem('ironroutine_username');
+            localStorage.removeItem('ironroutine_password');
+            localStorage.removeItem('ironroutine_password_expires');
+        }
+    });
+    
+    // Check if saved credentials are expired
+    const expirationDate = localStorage.getItem('ironroutine_password_expires');
+    if (expirationDate && new Date(expirationDate) < new Date()) {
+        // Credentials expired, clear them
+        localStorage.removeItem('ironroutine_remember_password');
+        localStorage.removeItem('ironroutine_username');
+        localStorage.removeItem('ironroutine_password');
+        localStorage.removeItem('ironroutine_password_expires');
+    }
+});
+</script>
+
+<style>
+.form-label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: #374151;
+}
+
+.card {
+    background: white;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e5e7eb;
+}
+
+.card-header {
+    padding: 1.5rem 1.5rem 0;
+    border-bottom: 1px solid #e5e7eb;
+    margin-bottom: 1.5rem;
+}
+
+.card-body {
+    padding: 0 1.5rem 1.5rem;
+}
+
+#id_username, #id_password {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #d1d5db;
+    border-radius: 0.375rem;
+    font-size: 1rem;
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+#id_username:focus, #id_password:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.btn {
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.375rem;
+    font-weight: 600;
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+    transition: all 0.15s ease-in-out;
+}
+
+.btn-primary {
+    background: #667eea;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #5a67d8;
+}
+
+.text-primary {
+    color: #667eea;
+}
+
+.text-danger {
+    color: #ef4444;
+}
+
+.text-muted {
+    color: #6b7280;
+}
+</style>
+{% endblock %}

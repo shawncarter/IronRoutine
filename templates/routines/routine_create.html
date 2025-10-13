@@ -247,6 +247,14 @@
                     </video>
                 </div>
             </div>
+            <div class="modal-footer mt-3">
+                <button type="button" class="btn btn-success" id="modal-add-exercise-btn">
+                    <i class="bi bi-plus-circle"></i> Add to Routine
+                </button>
+                <a href="#" id="modal-view-details-btn" class="btn btn-info" target="_blank">
+                    <i class="bi bi-info-circle"></i> View Details
+                </a>
+            </div>
         </div>
     </div>
 </div>
@@ -274,6 +282,17 @@
 .exercise-card:hover {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     transform: translateY(-2px);
+}
+
+/* Exercise Card Highlighted (when viewing video) */
+.exercise-card.viewing-video {
+    border: 2px solid #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+    transform: translateY(-2px);
+}
+
+.exercise-card.viewing-video .card-body {
+    background-color: #f0f4ff;
 }
 
 /* Clickable Badges */
@@ -377,6 +396,14 @@
 
 .modal-body {
     padding: 1.5rem;
+}
+
+.modal-footer {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    padding-top: 1rem;
+    border-top: 1px solid #e2e8f0;
 }
 
 .video-grid {
@@ -779,20 +806,35 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // Add click handlers for video buttons
-    document.querySelectorAll('.view-video-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const title = this.dataset.exerciseTitle;
-            const maleFront = this.dataset.maleFront;
-            const maleSide = this.dataset.maleSide;
-            const femaleFront = this.dataset.femaleFront;
-            const femaleSide = this.dataset.femaleSide;
+    // Add click handlers for video buttons using event delegation
+    document.addEventListener('click', function(e) {
+        if (e.target.classList.contains('view-video-btn') || e.target.closest('.view-video-btn')) {
+            const btn = e.target.classList.contains('view-video-btn') ? e.target : e.target.closest('.view-video-btn');
+            
+            // Remove highlighting from previously viewing card
+            if (currentViewingCard) {
+                currentViewingCard.classList.remove('viewing-video');
+            }
+            
+            // Highlight the current card
+            const exerciseCard = btn.closest('.exercise-card');
+            if (exerciseCard) {
+                exerciseCard.classList.add('viewing-video');
+                currentViewingCard = exerciseCard;
+            }
+            
+            const exerciseId = btn.dataset.exerciseId;
+            const title = btn.dataset.exerciseTitle;
+            const maleFront = btn.dataset.maleFront;
+            const maleSide = btn.dataset.maleSide;
+            const femaleFront = btn.dataset.femaleFront;
+            const femaleSide = btn.dataset.femaleSide;
             
             currentMaleVideos = { front: maleFront, side: maleSide };
             currentFemaleVideos = { front: femaleFront, side: femaleSide };
             
-            openVideoModal(title);
-        });
+            openVideoModal(title, exerciseId, title);
+        }
     });
     
     // AJAX filtering now handled by ajax-filters.js
@@ -815,10 +857,28 @@ document.addEventListener('DOMContentLoaded', function() {
 let currentMaleVideos = { front: '', side: '' };
 let currentFemaleVideos = { front: '', side: '' };
 let currentGender = 'male';
+let currentExerciseId = null;
+let currentExerciseName = null;
+let currentViewingCard = null;
 
-function openVideoModal(title) {
+function openVideoModal(title, exerciseId, exerciseName) {
+    currentExerciseId = exerciseId;
+    currentExerciseName = exerciseName;
+    
     document.getElementById('modal-exercise-title').textContent = title;
     document.getElementById('video-modal').style.display = 'flex';
+    
+    // Update modal buttons
+    const addBtn = document.getElementById('modal-add-exercise-btn');
+    const viewDetailsBtn = document.getElementById('modal-view-details-btn');
+    
+    addBtn.onclick = () => {
+        addExerciseToRoutine(currentExerciseId, currentExerciseName);
+        closeVideoModal();
+    };
+    
+    viewDetailsBtn.href = `/exercises/${exerciseId}/`;
+    
     switchGender('male');
     document.body.style.overflow = 'hidden';
 }
@@ -828,12 +888,22 @@ function closeVideoModal() {
     modal.style.display = 'none';
     document.body.style.overflow = '';
     
+    // Remove highlighting from the previously viewing card
+    if (currentViewingCard) {
+        currentViewingCard.classList.remove('viewing-video');
+        currentViewingCard = null;
+    }
+    
     const frontVideo = document.getElementById('modal-video-front');
     const sideVideo = document.getElementById('modal-video-side');
     frontVideo.pause();
     sideVideo.pause();
     frontVideo.currentTime = 0;
     sideVideo.currentTime = 0;
+    
+    // Reset current exercise data
+    currentExerciseId = null;
+    currentExerciseName = null;
 }
 
 function switchGender(gender) {

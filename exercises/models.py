@@ -82,9 +82,18 @@ class Exercise(models.Model):
     def get_instructions_list(self):
         """Return instructions as a clean list, handling both JSON and text formats"""
         if isinstance(self.instructions, list):
-            return [instruction.replace('\\', '') for instruction in self.instructions]
+            # Clean up escaped characters and trailing backslashes
+            cleaned_instructions = []
+            for instruction in self.instructions:
+                # Remove escaped quotes and trailing backslashes
+                cleaned = instruction.replace('\\\'', "'").replace('\\"', '"').replace('\\\\', '\\')
+                # Remove trailing backslashes and whitespace
+                cleaned = cleaned.rstrip('\\').strip()
+                if cleaned:  # Only add non-empty instructions
+                    cleaned_instructions.append(cleaned)
+            return cleaned_instructions
         elif isinstance(self.instructions, str):
-            return [self.instructions]
+            return [self.instructions.strip()]
         return []
     
     def get_video_urls(self, gender='male'):

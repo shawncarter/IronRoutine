@@ -10,6 +10,7 @@ class Routine(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_active = models.BooleanField(default=True)
+    is_public = models.BooleanField(default=True)  # Public routines can be viewed/copied by anyone
     
     def __str__(self):
         return f"{self.name} - {self.user.username}"
