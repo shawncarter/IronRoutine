@@ -1,0 +1,40 @@
+name: SonarQube Analysis
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  sonarqube:
+    name: SonarQube Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Shallow clones should be disabled for better analysis
+      
+      - name: SonarQube Scan
+        uses: sonarsource/sonarqube-scan-action@master
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        with:
+          args: >
+            -Dsonar.projectKey=IronRoutine
+            -Dsonar.sources=.
+            -Dsonar.exclusions=**/migrations/**,**/static/**,**/templates/**,**/venv/**,**/node_modules/**,**/__pycache__/**,**/build_exercise_db.py,**/scraper.py,**/retry_failures.py,**/check_missing.py,**/download_from_failures.py,**/extract_instructions.py
+            -Dsonar.python.version=3.8,3.9,3.10,3.11,3.12
+      
+      - name: Check Quality Gate
+        uses: sonarsource/sonarqube-quality-gate-action@master
+        timeout-minutes: 5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+

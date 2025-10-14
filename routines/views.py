@@ -14,6 +14,8 @@ from workouts.models import WorkoutSession
 # Constants for URL names and templates
 ROUTINE_DETAIL_URL = 'routines:routine_detail'
 ROUTINE_GENERATOR_TEMPLATE = 'routines/routine_generator.html'
+ROUTINE_LIST_URL = 'routines:routine_list'
+LOGIN_URL = 'accounts:login'
 
 
 def routine_list(request):
@@ -50,7 +52,7 @@ def routine_detail(request, routine_id):
     
     if not can_view:
         messages.error(request, 'You do not have permission to view this routine.')
-        return redirect('routines:routine_list')
+        return redirect(ROUTINE_LIST_URL)
     
     routine_exercises = routine.routine_exercises.all().order_by('order')
     
@@ -71,11 +73,76 @@ def routine_detail(request, routine_id):
     return render(request, 'routines/routine_detail.html', context)
 
 
+def _add_exercises_to_routine(request, routine):
+    """Add exercises from POST data to the routine"""
+    exercise_order = 0
+    for key, value in request.POST.items():
+        if key.startswith('exercise_'):
+            exercise_id = key.split('_')[1]
+            try:
+                exercise = Exercise.objects.get(id=exercise_id)
+                sets_count = int(request.POST.get(f'sets_{exercise_id}', 3))
+                rest_time = int(request.POST.get(f'rest_{exercise_id}', 60))
+
+                RoutineExercise.objects.create(
+                    routine=routine,
+                    exercise=exercise,
+                    sets_count=sets_count,
+                    rest_time_seconds=rest_time,
+                    order=exercise_order
+                )
+                exercise_order += 1
+            except (Exercise.DoesNotExist, ValueError):
+                continue
+
+
+def _get_filtered_exercises(search, muscle_group, equipment, difficulty):
+    """Apply filters to exercise queryset"""
+    exercises = Exercise.objects.all().order_by('title', 'name')
+
+    if search:
+        exercises = exercises.filter(
+            Q(name__icontains=search) |
+            Q(title__icontains=search) |
+            Q(description__icontains=search) |
+            Q(muscle__icontains=search)
+        ).distinct()
+
+    if muscle_group:
+        exercises = exercises.filter(
+            Q(muscle__icontains=muscle_group)
+        ).distinct()
+
+    if equipment:
+        exercises = exercises.filter(equipment=equipment)
+
+    if difficulty:
+        exercises = exercises.filter(difficulty=difficulty)
+
+    return exercises
+
+
+def _get_popular_exercises():
+    """Get a curated list of popular exercises for initial display"""
+    return Exercise.objects.filter(
+        Q(name__icontains='push') | Q(title__icontains='push') |
+        Q(name__icontains='squat') | Q(title__icontains='squat') |
+        Q(name__icontains='pull') | Q(title__icontains='pull') |
+        Q(name__icontains='plank') | Q(title__icontains='plank') |
+        Q(name__icontains='curl') | Q(title__icontains='curl') |
+        Q(name__icontains='press') | Q(title__icontains='press') |
+        Q(name__icontains='lunge') | Q(title__icontains='lunge') |
+        Q(name__icontains='crunch') | Q(title__icontains='crunch') |
+        Q(name__icontains='row') | Q(title__icontains='row') |
+        Q(name__icontains='deadlift') | Q(title__icontains='deadlift')
+    ).distinct().order_by('title', 'name')[:12]
+
+
 def routine_create(request):
     # Require authentication to create routines
     if not request.user.is_authenticated:
         messages.error(request, 'Please log in to create a routine.')
-        return redirect('accounts:login')
+        return redirect(LOGIN_URL)
     
     if request.method == 'POST':
         name = request.POST.get('name')
@@ -95,25 +162,7 @@ def routine_create(request):
         )
         
         # Add exercises to routine
-        exercise_order = 0
-        for key, value in request.POST.items():
-            if key.startswith('exercise_'):
-                exercise_id = key.split('_')[1]
-                try:
-                    exercise = Exercise.objects.get(id=exercise_id)
-                    sets_count = int(request.POST.get(f'sets_{exercise_id}', 3))
-                    rest_time = int(request.POST.get(f'rest_{exercise_id}', 60))
-                    
-                    RoutineExercise.objects.create(
-                        routine=routine,
-                        exercise=exercise,
-                        sets_count=sets_count,
-                        rest_time_seconds=rest_time,
-                        order=exercise_order
-                    )
-                    exercise_order += 1
-                except (Exercise.DoesNotExist, ValueError):
-                    continue
+        _add_exercises_to_routine(request, routine)
         
         messages.success(request, f'Routine "{name}" created successfully!')
         return redirect(ROUTINE_DETAIL_URL, routine_id=routine.id)
@@ -134,46 +183,10 @@ def routine_create(request):
 
     if has_filters:
         # Apply filters (same logic as exercise_list view)
-        exercises = Exercise.objects.all().order_by('title', 'name')
-
-        if search:
-            exercises = exercises.filter(
-                Q(name__icontains=search) |
-                Q(title__icontains=search) |
-                Q(description__icontains=search) |
-                Q(muscle__icontains=search)
-            ).distinct()
-
-        if muscle_group:
-            exercises = exercises.filter(
-                Q(muscle__icontains=muscle_group)
-            ).distinct()
-
-        if equipment:
-            exercises = exercises.filter(equipment=equipment)
-
-        if difficulty:
-            exercises = exercises.filter(difficulty=difficulty)
+        exercises = _get_filtered_exercises(search, muscle_group, equipment, difficulty)
     else:
         # Show only 12 popular exercises initially (no filters applied)
-        # Choose common exercises across different muscle groups for better UX
-        popular_exercises = [
-            'push-up', 'squat', 'pull-up', 'plank', 'deadlift', 'bench press',
-            'bicep curl', 'tricep', 'shoulder press', 'lunge', 'crunch', 'row'
-        ]
-
-        exercises = Exercise.objects.filter(
-            Q(name__icontains='push') | Q(title__icontains='push') |
-            Q(name__icontains='squat') | Q(title__icontains='squat') |
-            Q(name__icontains='pull') | Q(title__icontains='pull') |
-            Q(name__icontains='plank') | Q(title__icontains='plank') |
-            Q(name__icontains='curl') | Q(title__icontains='curl') |
-            Q(name__icontains='press') | Q(title__icontains='press') |
-            Q(name__icontains='lunge') | Q(title__icontains='lunge') |
-            Q(name__icontains='crunch') | Q(title__icontains='crunch') |
-            Q(name__icontains='row') | Q(title__icontains='row') |
-            Q(name__icontains='deadlift') | Q(title__icontains='deadlift')
-        ).distinct().order_by('title', 'name')[:12]
+        exercises = _get_popular_exercises()
     
     context = {
         'exercises': exercises,
@@ -292,7 +305,7 @@ def routine_delete(request, routine_id):
         routine_name = routine.name
         routine.delete()
         messages.success(request, f'Routine "{routine_name}" deleted successfully!')
-        return redirect('routines:routine_list')
+        return redirect(ROUTINE_LIST_URL)
     
     context = {'routine': routine}
     return render(request, 'routines/routine_delete.html', context)
@@ -309,12 +322,12 @@ def routine_start(request, routine_id):
     
     if not can_view:
         messages.error(request, 'You do not have permission to start this routine.')
-        return redirect('routines:routine_list')
-    
+        return redirect(ROUTINE_LIST_URL)
+
     # Require authentication to track workouts
     if not request.user.is_authenticated:
         messages.info(request, 'Please log in to track your workouts.')
-        return redirect('accounts:login')
+        return redirect(LOGIN_URL)
     
     # Create workout session
     session = WorkoutSession.objects.create(
@@ -334,12 +347,12 @@ def routine_copy(request, routine_id):
     # Check if routine is public
     if not original_routine.is_public:
         messages.error(request, 'This routine is not available for copying.')
-        return redirect('routines:routine_list')
-    
+        return redirect(ROUTINE_LIST_URL)
+
     # Require authentication
     if not request.user.is_authenticated:
         messages.info(request, 'Please log in to copy this routine.')
-        return redirect('accounts:login')
+        return redirect(LOGIN_URL)
     
     # Create a copy of the routine
     new_routine = Routine.objects.create(

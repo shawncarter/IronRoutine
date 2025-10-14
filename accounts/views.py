@@ -5,6 +5,9 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import logout as auth_logout
 
+# Constants for URL names
+EXERCISE_LIST_URL = 'exercises:exercise_list'
+
 
 def register(request):
     if request.method == 'POST':
@@ -14,7 +17,7 @@ def register(request):
             username = form.cleaned_data.get('username')
             messages.success(request, f'Account created for {username}! You are now logged in.')
             login(request, user)
-            return redirect('exercises:exercise_list')
+            return redirect(EXERCISE_LIST_URL)
     else:
         form = UserCreationForm()
     return render(request, 'accounts/register.html', {'form': form})
@@ -31,7 +34,7 @@ def login_view(request):
                 login(request, user)
                 messages.success(request, f'Welcome back, {username}!')
                 # Redirect to next page or default
-                next_page = request.GET.get('next', 'exercises:exercise_list')
+                next_page = request.GET.get('next', EXERCISE_LIST_URL)
                 return redirect(next_page)
             else:
                 messages.error(request, 'Invalid username or password.')
@@ -45,7 +48,7 @@ def login_view(request):
 def logout_view(request):
     auth_logout(request)
     messages.success(request, 'You have been logged out successfully.')
-    return redirect('exercises:exercise_list')
+    return redirect(EXERCISE_LIST_URL)
 
 
 @login_required
