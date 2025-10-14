@@ -7,12 +7,11 @@ from django.utils import timezone
 from .models import WorkoutSession, WorkoutSet
 from routines.models import RoutineExercise
 from exercises.models import Exercise
-import json
 
 
 def workout_history(request):
     # Get default user
-    user, created = User.objects.get_or_create(username='default_user', defaults={
+    user, _ = User.objects.get_or_create(username='default_user', defaults={
         'first_name': 'Demo',
         'last_name': 'User',
         'email': 'demo@example.com'
@@ -129,8 +128,14 @@ def save_workout_set(request):
         })
 
 
-def workout_exercise_sets_api(request, session_id, exercise_id):
-    """API endpoint to fetch completed sets for an exercise in a workout session"""
+def workout_exercise_sets_api(_request, session_id, exercise_id):
+    """API endpoint to fetch completed sets for an exercise in a workout session
+
+    Args:
+        _request: Django request object (unused but required for URL routing)
+        session_id: ID of the workout session
+        exercise_id: ID of the exercise
+    """
     session = get_object_or_404(WorkoutSession, id=session_id)
     exercise = get_object_or_404(Exercise, id=exercise_id)
     
