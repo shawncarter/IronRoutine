@@ -281,10 +281,16 @@ def routine_edit(request, routine_id):
     muscle_values = Exercise.objects.exclude(muscle='').values_list('muscle', flat=True).distinct().order_by('muscle')
     muscle_groups = [{'name': muscle} for muscle in muscle_values if muscle]
 
+    # Get filter parameters
+    search = request.GET.get('search', '')
+    muscle_group = request.GET.get('muscle_group', '')
+    equipment = request.GET.get('equipment', '')
+    difficulty = request.GET.get('difficulty', '')
+
     # Apply filters to exercises
     exercises = _apply_exercise_filters(request)
     current_exercises = routine.routine_exercises.all().order_by('order')
-    
+
     context = {
         'routine': routine,
         'exercises': exercises,
