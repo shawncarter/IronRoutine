@@ -15,6 +15,25 @@ WORKOUT_SESSION_URL = 'workouts:workout_session'
 LOGIN_URL = 'accounts:login'
 
 
+def _verify_session_access(request, session):
+    """
+    Verify user has access to the workout session.
+
+    Returns None if access is granted, otherwise returns a redirect response.
+    """
+    if request.user.is_authenticated:
+        if session.user != request.user:
+            messages.error(request, 'You do not have permission to view this workout session.')
+            return redirect(WORKOUT_HISTORY_URL)
+    else:
+        # Allow demo user access
+        default_user = User.objects.filter(username='default_user').first()
+        if not default_user or session.user != default_user:
+            messages.error(request, 'Please log in to view workout sessions.')
+            return redirect(LOGIN_URL)
+    return None
+
+
 def workout_history(request):
     """
     Display workout history for the current user.
@@ -50,16 +69,9 @@ def workout_session(request, session_id):
     session = get_object_or_404(WorkoutSession, id=session_id)
 
     # Verify user owns this session (or is demo user)
-    if request.user.is_authenticated:
-        if session.user != request.user:
-            messages.error(request, 'You do not have permission to view this workout session.')
-            return redirect(WORKOUT_HISTORY_URL)
-    else:
-        # Allow demo user access
-        default_user = User.objects.filter(username='default_user').first()
-        if not default_user or session.user != default_user:
-            messages.error(request, 'Please log in to view workout sessions.')
-            return redirect(LOGIN_URL)
+    access_check = _verify_session_access(request, session)
+    if access_check:
+        return access_check
 
     routine_exercises = session.routine.routine_exercises.all().order_by('order')
     

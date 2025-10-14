@@ -52,11 +52,8 @@
                  data-routine-exercise-id="{{ progress.routine_exercise.id }}">
                 
                 <!-- Exercise Header (Always Visible) -->
-                <div class="exercise-header"
-                     role="button"
-                     tabindex="0"
-                     onclick="toggleExercise({{ progress.routine_exercise.exercise.id }})"
-                     onkeypress="if(event.key === 'Enter' || event.key === ' ') { toggleExercise({{ progress.routine_exercise.exercise.id }}); event.preventDefault(); }">
+                <button type="button" class="exercise-header"
+                        onclick="toggleExercise({{ progress.routine_exercise.exercise.id }})">
                     <div class="flex justify-between items-center">
                         <div class="flex-1">
                             <div class="flex items-center gap-3">
@@ -97,7 +94,7 @@
                             <div class="progress-fill" style="width: {{ progress.progress_percent }}%"></div>
                         </div>
                     </div>
-                </div>
+                </button>
                 
                 <!-- Exercise Details (Expandable) -->
                 <div class="exercise-details" style="display: none;">
@@ -252,6 +249,13 @@
     padding: 1.25rem;
     cursor: pointer;
     transition: background-color 0.2s;
+    /* Reset button styles */
+    width: 100%;
+    border: none;
+    background: none;
+    text-align: left;
+    font: inherit;
+    color: inherit;
 }
 
 .exercise-header:hover {
