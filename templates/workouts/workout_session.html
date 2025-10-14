@@ -52,7 +52,11 @@
                  data-routine-exercise-id="{{ progress.routine_exercise.id }}">
                 
                 <!-- Exercise Header (Always Visible) -->
-                <div class="exercise-header" onclick="toggleExercise({{ progress.routine_exercise.exercise.id }})">
+                <div class="exercise-header"
+                     role="button"
+                     tabindex="0"
+                     onclick="toggleExercise({{ progress.routine_exercise.exercise.id }})"
+                     onkeypress="if(event.key === 'Enter' || event.key === ' ') { toggleExercise({{ progress.routine_exercise.exercise.id }}); event.preventDefault(); }">
                     <div class="flex justify-between items-center">
                         <div class="flex-1">
                             <div class="flex items-center gap-3">
@@ -169,16 +173,16 @@
                                 <div class="set-input-form">
                                     <div class="set-inputs">
                                         <div class="input-group">
-                                            <label>Weight (kg)</label>
+                                            <label for="weight-{{ progress.routine_exercise.exercise.id }}">Weight (kg)</label>
                                             <input type="number" class="form-control" id="weight-{{ progress.routine_exercise.exercise.id }}" step="0.5" min="0" value="{{ progress.routine_exercise.target_weight|default:'' }}">
                                         </div>
                                         <div class="input-group">
-                                            <label>Reps</label>
+                                            <label for="reps-{{ progress.routine_exercise.exercise.id }}">Reps</label>
                                             <input type="number" class="form-control" id="reps-{{ progress.routine_exercise.exercise.id }}" min="1" value="{{ progress.routine_exercise.target_reps|default:'' }}">
                                         </div>
                                         <div class="input-group">
-                                            <label>Volume</label>
-                                            <div class="volume-display" id="volume-{{ progress.routine_exercise.exercise.id }}">0kg</div>
+                                            <label for="volume-{{ progress.routine_exercise.exercise.id }}">Volume</label>
+                                            <output class="volume-display" id="volume-{{ progress.routine_exercise.exercise.id }}" for="weight-{{ progress.routine_exercise.exercise.id }} reps-{{ progress.routine_exercise.exercise.id }}">0kg</output>
                                         </div>
                                         <div class="input-group">
                                             <button type="button" class="btn btn-success" id="set-button-{{ progress.routine_exercise.exercise.id }}" onclick="saveSetInline({{ session.id }}, {{ progress.routine_exercise.exercise.id }}, {{ progress.routine_exercise.sets_count }})">
@@ -686,7 +690,7 @@ input[type="number"]::-webkit-inner-spin-button {
 }
 
 .bg-opacity-50 {
-    background-opacity: 0.5;
+    opacity: 0.5;
 }
 </style>
 
