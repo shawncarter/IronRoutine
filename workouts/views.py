@@ -1,6 +1,7 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.contrib.auth.models import User
+from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from django.utils import timezone
@@ -8,17 +9,31 @@ from .models import WorkoutSession, WorkoutSet
 from routines.models import RoutineExercise
 from exercises.models import Exercise
 
+# Constants for URL names
+WORKOUT_HISTORY_URL = 'workouts:workout_history'
+WORKOUT_SESSION_URL = 'workouts:workout_session'
+LOGIN_URL = 'accounts:login'
+
 
 def workout_history(request):
-    # Get default user
-    user, _ = User.objects.get_or_create(username='default_user', defaults={
-        'first_name': 'Demo',
-        'last_name': 'User',
-        'email': 'demo@example.com'
-    })
-    
+    """
+    Display workout history for the current user.
+
+    SECURITY NOTE: This view uses a default demo user for unauthenticated access.
+    This is intentional for demo purposes. In production, consider adding @login_required.
+    """
+    # Get default user for demo purposes (allows unauthenticated access)
+    if request.user.is_authenticated:
+        user = request.user
+    else:
+        user, _ = User.objects.get_or_create(username='default_user', defaults={
+            'first_name': 'Demo',
+            'last_name': 'User',
+            'email': 'demo@example.com'
+        })
+
     sessions = WorkoutSession.objects.filter(user=user).order_by('-started_at')
-    
+
     context = {
         'sessions': sessions,
         'user': user,
@@ -27,7 +42,25 @@ def workout_history(request):
 
 
 def workout_session(request, session_id):
+    """
+    Display active workout session with exercise tracking.
+
+    SECURITY: Verifies user owns the workout session or uses default demo user.
+    """
     session = get_object_or_404(WorkoutSession, id=session_id)
+
+    # Verify user owns this session (or is demo user)
+    if request.user.is_authenticated:
+        if session.user != request.user:
+            messages.error(request, 'You do not have permission to view this workout session.')
+            return redirect(WORKOUT_HISTORY_URL)
+    else:
+        # Allow demo user access
+        default_user = User.objects.filter(username='default_user').first()
+        if not default_user or session.user != default_user:
+            messages.error(request, 'Please log in to view workout sessions.')
+            return redirect(LOGIN_URL)
+
     routine_exercises = session.routine.routine_exercises.all().order_by('order')
     
     # Calculate progress for each exercise
@@ -53,7 +86,7 @@ def workout_session(request, session_id):
     
     # If no current exercise, workout is complete
     if not current_exercise and routine_exercises.exists():
-        return redirect('workouts:workout_complete', session_id=session.id)
+        return redirect('workouts:workout_complete', session_id=session.id)  # Note: workout_complete is not duplicated
     
     context = {
         'session': session,
@@ -73,7 +106,7 @@ def workout_exercise(request, session_id, exercise_id):
         routine_exercise = session.routine.routine_exercises.get(exercise=exercise)
     except RoutineExercise.DoesNotExist:
         messages.error(request, 'Exercise not found in this routine')
-        return redirect('workouts:workout_session', session_id=session.id)
+        return redirect(WORKOUT_SESSION_URL, session_id=session.id)
     
     # Get completed sets
     completed_sets = session.workout_sets.filter(exercise=exercise).order_by('set_number')
@@ -92,14 +125,30 @@ def workout_exercise(request, session_id, exercise_id):
 
 @require_POST
 def save_workout_set(request):
+    """
+    Save a workout set for a session.
+
+    SECURITY: Verifies user owns the workout session before saving data.
+    """
     try:
         session_id = request.POST.get('session_id')
         exercise_id = request.POST.get('exercise_id')
         set_number = int(request.POST.get('set_number'))
         weight = float(request.POST.get('weight'))
         reps = int(request.POST.get('reps'))
-        
+
         session = get_object_or_404(WorkoutSession, id=session_id)
+
+        # Verify user owns this session
+        if request.user.is_authenticated:
+            if session.user != request.user:
+                return JsonResponse({'success': False, 'error': 'Permission denied'}, status=403)
+        else:
+            # Allow demo user access
+            default_user = User.objects.filter(username='default_user').first()
+            if not default_user or session.user != default_user:
+                return JsonResponse({'success': False, 'error': 'Authentication required'}, status=401)
+
         exercise = get_object_or_404(Exercise, id=exercise_id)
         
         # Get routine exercise for rest time
@@ -128,15 +177,29 @@ def save_workout_set(request):
         })
 
 
-def workout_exercise_sets_api(_request, session_id, exercise_id):
-    """API endpoint to fetch completed sets for an exercise in a workout session
+def workout_exercise_sets_api(request, session_id, exercise_id):
+    """
+    API endpoint to fetch completed sets for an exercise in a workout session.
+
+    SECURITY: Verifies user owns the workout session before returning data.
 
     Args:
-        _request: Django request object (unused but required for URL routing)
+        request: Django request object
         session_id: ID of the workout session
         exercise_id: ID of the exercise
     """
     session = get_object_or_404(WorkoutSession, id=session_id)
+
+    # Verify user owns this session
+    if request.user.is_authenticated:
+        if session.user != request.user:
+            return JsonResponse({'success': False, 'error': 'Permission denied'}, status=403)
+    else:
+        # Allow demo user access
+        default_user = User.objects.filter(username='default_user').first()
+        if not default_user or session.user != default_user:
+            return JsonResponse({'success': False, 'error': 'Authentication required'}, status=401)
+
     exercise = get_object_or_404(Exercise, id=exercise_id)
     
     # Get completed sets
@@ -160,8 +223,25 @@ def workout_exercise_sets_api(_request, session_id, exercise_id):
 
 
 def workout_complete(request, session_id):
+    """
+    Mark a workout session as complete.
+
+    SECURITY: Verifies user owns the workout session before allowing completion.
+    """
     session = get_object_or_404(WorkoutSession, id=session_id)
-    
+
+    # Verify user owns this session
+    if request.user.is_authenticated:
+        if session.user != request.user:
+            messages.error(request, 'You do not have permission to complete this workout.')
+            return redirect(WORKOUT_HISTORY_URL)
+    else:
+        # Allow demo user access
+        default_user = User.objects.filter(username='default_user').first()
+        if not default_user or session.user != default_user:
+            messages.error(request, 'Please log in to complete workouts.')
+            return redirect(LOGIN_URL)
+
     if request.method == 'POST':
         session.status = 'completed'
         session.completed_at = timezone.now()
@@ -171,7 +251,7 @@ def workout_complete(request, session_id):
         session.calculate_total_volume()
         
         messages.success(request, 'Workout completed! Great job! 💪')
-        return redirect('workouts:workout_history')
+        return redirect(WORKOUT_HISTORY_URL)
     
     # Get workout statistics
     total_sets = session.workout_sets.count()
