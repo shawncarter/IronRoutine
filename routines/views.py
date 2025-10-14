@@ -11,6 +11,10 @@ from .models import Routine, RoutineExercise
 from exercises.models import Exercise, MuscleGroup
 from workouts.models import WorkoutSession
 
+# Constants for URL names and templates
+ROUTINE_DETAIL_URL = 'routines:routine_detail'
+ROUTINE_GENERATOR_TEMPLATE = 'routines/routine_generator.html'
+
 
 def routine_list(request):
     if request.user.is_authenticated:
@@ -112,7 +116,7 @@ def routine_create(request):
                     continue
         
         messages.success(request, f'Routine "{name}" created successfully!')
-        return redirect('routines:routine_detail', routine_id=routine.id)
+        return redirect(ROUTINE_DETAIL_URL, routine_id=routine.id)
     
     # GET request - show form with limited initial exercises for performance
     # Get unique muscle groups from actual exercises (for filter dropdowns)
@@ -182,59 +186,42 @@ def routine_create(request):
     return render(request, 'routines/routine_create.html', context)
 
 
-def routine_edit(request, routine_id):
-    routine = get_object_or_404(Routine, id=routine_id)
-    
-    # Check if user can edit this routine
-    if not request.user.is_authenticated or routine.user != request.user:
-        messages.error(request, 'You do not have permission to edit this routine.')
-        return redirect('routines:routine_detail', routine_id=routine.id)
-    
-    if request.method == 'POST':
-        routine.name = request.POST.get('name', routine.name)
-        routine.description = request.POST.get('description', routine.description)
-        routine.is_public = request.POST.get('is_public') == 'on'
-        routine.save()
-        
-        # Clear existing exercises
-        routine.routine_exercises.all().delete()
-        
-        # Add new exercises
-        exercise_order = 0
-        for key, value in request.POST.items():
-            if key.startswith('exercise_'):
-                exercise_id = key.split('_')[1]
-                try:
-                    exercise = Exercise.objects.get(id=exercise_id)
-                    sets_count = int(request.POST.get(f'sets_{exercise_id}', 3))
-                    rest_time = int(request.POST.get(f'rest_{exercise_id}', 60))
-                    
-                    RoutineExercise.objects.create(
-                        routine=routine,
-                        exercise=exercise,
-                        sets_count=sets_count,
-                        rest_time_seconds=rest_time,
-                        order=exercise_order
-                    )
-                    exercise_order += 1
-                except (Exercise.DoesNotExist, ValueError):
-                    continue
-        
-        messages.success(request, f'Routine "{routine.name}" updated successfully!')
-        return redirect('routines:routine_detail', routine_id=routine.id)
-    
-    # GET request - Add filtering like routine_create
-    # Get unique muscle groups from actual exercises (for filter dropdowns)
-    muscle_values = Exercise.objects.exclude(muscle='').values_list('muscle', flat=True).distinct().order_by('muscle')
-    muscle_groups = [{'name': muscle} for muscle in muscle_values if muscle]
+def _process_routine_exercises(request, routine):
+    """Process and save exercises from the edit form"""
+    # Clear existing exercises
+    routine.routine_exercises.all().delete()
 
-    # Check if any filters are applied
+    # Add new exercises
+    exercise_order = 0
+    for key, value in request.POST.items():
+        if not key.startswith('exercise_'):
+            continue
+
+        exercise_id = key.split('_')[1]
+        try:
+            exercise = Exercise.objects.get(id=exercise_id)
+            sets_count = int(request.POST.get(f'sets_{exercise_id}', 3))
+            rest_time = int(request.POST.get(f'rest_{exercise_id}', 60))
+
+            RoutineExercise.objects.create(
+                routine=routine,
+                exercise=exercise,
+                sets_count=sets_count,
+                rest_time_seconds=rest_time,
+                order=exercise_order
+            )
+            exercise_order += 1
+        except (Exercise.DoesNotExist, ValueError):
+            continue
+
+
+def _apply_exercise_filters(request):
+    """Apply search and filter criteria to exercises"""
     search = request.GET.get('search', '')
     muscle_group = request.GET.get('muscle_group', '')
     equipment = request.GET.get('equipment', '')
     difficulty = request.GET.get('difficulty', '')
 
-    # Apply filters to exercises
     exercises = Exercise.objects.all().order_by('title', 'name')
 
     if search:
@@ -246,9 +233,7 @@ def routine_edit(request, routine_id):
         ).distinct()
 
     if muscle_group:
-        exercises = exercises.filter(
-            Q(muscle__icontains=muscle_group)
-        ).distinct()
+        exercises = exercises.filter(Q(muscle__icontains=muscle_group)).distinct()
 
     if equipment:
         exercises = exercises.filter(equipment=equipment)
@@ -256,6 +241,35 @@ def routine_edit(request, routine_id):
     if difficulty:
         exercises = exercises.filter(difficulty=difficulty)
 
+    return exercises
+
+
+def routine_edit(request, routine_id):
+    routine = get_object_or_404(Routine, id=routine_id)
+
+    # Check if user can edit this routine
+    if not request.user.is_authenticated or routine.user != request.user:
+        messages.error(request, 'You do not have permission to edit this routine.')
+        return redirect(ROUTINE_DETAIL_URL, routine_id=routine.id)
+
+    if request.method == 'POST':
+        routine.name = request.POST.get('name', routine.name)
+        routine.description = request.POST.get('description', routine.description)
+        routine.is_public = request.POST.get('is_public') == 'on'
+        routine.save()
+
+        # Process exercises
+        _process_routine_exercises(request, routine)
+
+        messages.success(request, f'Routine "{routine.name}" updated successfully!')
+        return redirect(ROUTINE_DETAIL_URL, routine_id=routine.id)
+
+    # GET request - Add filtering like routine_create
+    muscle_values = Exercise.objects.exclude(muscle='').values_list('muscle', flat=True).distinct().order_by('muscle')
+    muscle_groups = [{'name': muscle} for muscle in muscle_values if muscle]
+
+    # Apply filters to exercises
+    exercises = _apply_exercise_filters(request)
     current_exercises = routine.routine_exercises.all().order_by('order')
     
     context = {
@@ -348,7 +362,7 @@ def routine_copy(request, routine_id):
         )
     
     messages.success(request, f'Routine "{original_routine.name}" copied to your account!')
-    return redirect('routines:routine_detail', routine_id=new_routine.id)
+    return redirect(ROUTINE_DETAIL_URL, routine_id=new_routine.id)
 
 
 def user_routines_api(request):
@@ -418,18 +432,123 @@ def add_exercise_to_routine(request, routine_id):
         return JsonResponse({'error': str(e)}, status=500)
 
 
-def routine_generator(request):
-    """Generate a routine based on muscle groups and equipment selection"""
-    
-    # Define muscle group categories for easy selection
-    muscle_group_categories = {
+def _validate_routine_generator_form(request, routine_name, equipment_list, category, custom_muscles, muscle_group_categories):
+    """Validate routine generator form inputs"""
+    context = {
+        'muscle_group_categories': muscle_group_categories,
+        'equipment_options': _get_equipment_options(),
+        'special_splits': _get_special_splits(),
+        'all_muscles': get_available_muscles(),
+    }
+
+    if not routine_name:
+        messages.error(request, 'Please provide a routine name')
+        return False, context
+
+    if not equipment_list:
+        messages.error(request, 'Please select at least one equipment type')
+        return False, context
+
+    if not category and not custom_muscles:
+        messages.error(request, 'Please select muscle groups')
+        return False, context
+
+    return True, context
+
+
+def _get_target_muscles_and_equipment(category, custom_muscles, equipment_list, muscle_group_categories):
+    """Determine target muscles and equipment based on category or custom selection"""
+    target_muscles = None
+    final_equipment_list = equipment_list
+
+    if category and category in muscle_group_categories:
+        category_data = muscle_group_categories[category]
+        target_muscles = category_data['muscles']
+        # Override equipment for special categories
+        if 'equipment_override' in category_data:
+            final_equipment_list = [category_data['equipment_override']]
+    elif custom_muscles:
+        target_muscles = custom_muscles
+
+    return target_muscles, final_equipment_list
+
+
+def _create_routine_with_exercises(user, routine_name, target_muscles, final_equipment_list,
+                                   selected_exercises, sets_per_exercise, rest_time):
+    """Create a routine and add exercises to it"""
+    equipment_options = _get_equipment_options()
+    equipment_names = [dict(equipment_options).get(eq, eq) for eq in final_equipment_list]
+    equipment_description = ', '.join(equipment_names).lower()
+
+    routine = Routine.objects.create(
+        name=routine_name,
+        user=user,
+        description=f"Generated {equipment_description} routine targeting: {', '.join(target_muscles)}"
+    )
+
+    # Add exercises to routine
+    for i, exercise in enumerate(selected_exercises):
+        RoutineExercise.objects.create(
+            routine=routine,
+            exercise=exercise,
+            sets_count=sets_per_exercise,
+            rest_time_seconds=rest_time,
+            order=i + 1
+        )
+
+    return routine
+
+
+def _get_equipment_options():
+    """Get available equipment options"""
+    return [
+        ('dumbbells', 'Dumbbells'),
+        ('barbell', 'Barbell'),
+        ('bodyweight', 'Bodyweight'),
+        ('machine', 'Machine'),
+        ('kettlebells', 'Kettlebells'),
+        ('stretches', 'Yoga/Stretches'),
+        ('mixed', 'Mixed Equipment'),
+    ]
+
+
+def _get_special_splits():
+    """Get special workout split configurations"""
+    return {
+        '3_day_split': {
+            'name': '3-Day Full Body Split',
+            'description': 'Creates 3 complementary routines for a complete weekly program (15 exercises total)',
+            'routines': [
+                {
+                    'name': 'Upper Body Push',
+                    'muscles': ['chest', 'shoulders', 'triceps', 'anterior-deltoid', 'upper-trapezius'],
+                    'description': 'Day 1: Chest, shoulders, and triceps'
+                },
+                {
+                    'name': 'Back & Biceps Pull',
+                    'muscles': ['lats', 'traps', 'biceps', 'rear-shoulders', 'forearms'],
+                    'description': 'Day 2: Back, biceps, and rear delts'
+                },
+                {
+                    'name': 'Legs & Core',
+                    'muscles': ['quads', 'hamstrings', 'glutes', 'calves', 'abdominals'],
+                    'description': 'Day 3: Full legs and core strengthening'
+                }
+            ]
+        }
+    }
+
+
+def _get_muscle_group_categories():
+    """Get muscle group category definitions"""
+    return {
         'arms': {
             'name': 'Arms',
             'muscles': ['biceps', 'triceps', 'forearms', 'shoulders'],
             'description': 'Complete arm workout targeting biceps, triceps, forearms, and shoulders'
         },
         'legs': {
-            'name': 'Legs', 
+            'name': 'Legs',
             'muscles': ['quads', 'hamstrings', 'calves', 'glutes'],
             'description': 'Full leg workout targeting quads, hamstrings, calves, and glutes'
         },
@@ -471,140 +590,76 @@ def routine_generator(request):
             'equipment_override': 'bodyweight'
         }
     }
-    
-    # Available equipment options
-    equipment_options = [
-        ('dumbbells', 'Dumbbells'),
-        ('barbell', 'Barbell'),
-        ('bodyweight', 'Bodyweight'),
-        ('machine', 'Machine'),
-        ('kettlebells', 'Kettlebells'),
-        ('stretches', 'Yoga/Stretches'),
-        ('mixed', 'Mixed Equipment'),
-    ]
-    
-    # Special workout splits
-    special_splits = {
-        '3_day_split': {
-            'name': '3-Day Full Body Split',
-            'description': 'Creates 3 complementary routines for a complete weekly program (15 exercises total)',
-            'routines': [
-                {
-                    'name': 'Upper Body Push',
-                    'muscles': ['chest', 'shoulders', 'triceps', 'anterior-deltoid', 'upper-trapezius'],
-                    'description': 'Day 1: Chest, shoulders, and triceps'
-                },
-                {
-                    'name': 'Back & Biceps Pull', 
-                    'muscles': ['lats', 'traps', 'biceps', 'rear-shoulders', 'forearms'],
-                    'description': 'Day 2: Back, biceps, and rear delts'
-                },
-                {
-                    'name': 'Legs & Core',
-                    'muscles': ['quads', 'hamstrings', 'glutes', 'calves', 'abdominals'],
-                    'description': 'Day 3: Full legs and core strengthening'
-                }
-            ]
-        }
-    }
-    
+
+
+def routine_generator(request):
+    """Generate a routine based on muscle groups and equipment selection"""
+    muscle_group_categories = _get_muscle_group_categories()
+    special_splits = _get_special_splits()
+
     if request.method == 'POST':
         # Get form data
         routine_name = request.POST.get('routine_name', '').strip()
         category = request.POST.get('category')
-        equipment_list = request.POST.getlist('equipment')  # Now a list
+        equipment_list = request.POST.getlist('equipment')
         exercise_count = int(request.POST.get('exercise_count', 5))
         sets_per_exercise = int(request.POST.get('sets_per_exercise', 3))
         rest_time = int(request.POST.get('rest_time', 60))
         custom_muscles = request.POST.getlist('custom_muscles')
-        
-        context = {
-            'muscle_group_categories': muscle_group_categories,
-            'equipment_options': equipment_options,
-            'special_splits': special_splits,
-            'all_muscles': get_available_muscles(),
-        }
-        
+
         # Handle 3-Day Split special case
         if category == '3_day_split':
-            # For 3-day split, use the first equipment or default to 'mixed'
             equipment = equipment_list[0] if equipment_list else 'mixed'
             return handle_3_day_split(request, routine_name, equipment, sets_per_exercise, rest_time, special_splits)
-        
-        if not routine_name:
-            messages.error(request, 'Please provide a routine name')
-            return render(request, 'routines/routine_generator.html', context)
-        
-        # Validate equipment selection
-        if not equipment_list:
-            messages.error(request, 'Please select at least one equipment type')
-            return render(request, 'routines/routine_generator.html', context)
-        
+
+        # Validate form
+        is_valid, context = _validate_routine_generator_form(
+            request, routine_name, equipment_list, category, custom_muscles, muscle_group_categories
+        )
+        if not is_valid:
+            return render(request, ROUTINE_GENERATOR_TEMPLATE, context)
+
         # Get target muscles and equipment
-        target_muscles = None
-        final_equipment_list = equipment_list
-        
-        if category and category in muscle_group_categories:
-            category_data = muscle_group_categories[category]
-            target_muscles = category_data['muscles']
-            # Override equipment for special categories
-            if 'equipment_override' in category_data:
-                final_equipment_list = [category_data['equipment_override']]
-        elif custom_muscles:
-            target_muscles = custom_muscles
-        else:
-            messages.error(request, 'Please select muscle groups')
-            return render(request, 'routines/routine_generator.html', context)
-        
+        target_muscles, final_equipment_list = _get_target_muscles_and_equipment(
+            category, custom_muscles, equipment_list, muscle_group_categories
+        )
+
         # Generate exercises
-        selected_exercises = generate_routine_exercises(
-            target_muscles, final_equipment_list, exercise_count
-        )
-        
+        selected_exercises = generate_routine_exercises(target_muscles, final_equipment_list, exercise_count)
+
         if not selected_exercises:
-            messages.error(request, f'No exercises found for the selected criteria. Try different muscle groups or equipment.')
-            return render(request, 'routines/routine_generator.html', context)
-        
+            messages.error(request, 'No exercises found for the selected criteria. Try different muscle groups or equipment.')
+            context = {
+                'muscle_group_categories': muscle_group_categories,
+                'equipment_options': _get_equipment_options(),
+                'special_splits': special_splits,
+                'all_muscles': get_available_muscles(),
+            }
+            return render(request, ROUTINE_GENERATOR_TEMPLATE, context)
+
         # Get or create user
-        if request.user.is_authenticated:
-            user = request.user
-        else:
-            user, created = User.objects.get_or_create(username='default_user', defaults={
-                'first_name': 'Demo',
-                'last_name': 'User',
-                'email': 'demo@example.com'
-            })
-        
-        # Create routine
-        equipment_names = [dict(equipment_options).get(eq, eq) for eq in final_equipment_list]
-        equipment_description = ', '.join(equipment_names).lower()
-        routine = Routine.objects.create(
-            name=routine_name,
-            user=user,
-            description=f"Generated {equipment_description} routine targeting: {', '.join(target_muscles)}"
+        user = request.user if request.user.is_authenticated else User.objects.get_or_create(
+            username='default_user',
+            defaults={'first_name': 'Demo', 'last_name': 'User', 'email': 'demo@example.com'}
+        )[0]
+
+        # Create routine with exercises
+        routine = _create_routine_with_exercises(
+            user, routine_name, target_muscles, final_equipment_list,
+            selected_exercises, sets_per_exercise, rest_time
         )
-        
-        # Add exercises to routine
-        for i, exercise in enumerate(selected_exercises):
-            RoutineExercise.objects.create(
-                routine=routine,
-                exercise=exercise,
-                sets_count=sets_per_exercise,
-                rest_time_seconds=rest_time,
-                order=i + 1
-            )
-        
+
         messages.success(request, f'Generated routine "{routine_name}" with {len(selected_exercises)} exercises!')
-        return redirect('routines:routine_detail', routine_id=routine.id)
-    
+        return redirect(ROUTINE_DETAIL_URL, routine_id=routine.id)
+
     # GET request - show form
     context = {
         'muscle_group_categories': muscle_group_categories,
-        'equipment_options': equipment_options,
+        'equipment_options': _get_equipment_options(),
         'special_splits': special_splits,
         'all_muscles': get_available_muscles(),
     }
-    return render(request, 'routines/routine_generator.html', context)
+    return render(request, ROUTINE_GENERATOR_TEMPLATE, context)
 
 
 def handle_3_day_split(request, routine_name, equipment, sets_per_exercise, rest_time, special_splits):
@@ -680,13 +735,13 @@ def handle_3_day_split(request, routine_name, equipment, sets_per_exercise, rest
             'special_splits': special_splits,
             'all_muscles': get_available_muscles(),
         }
-        return render(request, 'routines/routine_generator.html', context)
-    
+        return render(request, ROUTINE_GENERATOR_TEMPLATE, context)
+
     # Get or create user
     if request.user.is_authenticated:
         user = request.user
     else:
-        user, created = User.objects.get_or_create(username='default_user', defaults={
+        user, _ = User.objects.get_or_create(username='default_user', defaults={
             'first_name': 'Demo',
             'last_name': 'User',
             'email': 'demo@example.com'
@@ -728,7 +783,7 @@ def handle_3_day_split(request, routine_name, equipment, sets_per_exercise, rest
     if created_routines:
         messages.success(request, f'Generated 3-day split program "{routine_name}" with {len(created_routines)} routines and {sum(r.routine_exercises.count() for r in created_routines)} total exercises!')
         # Redirect to the first routine
-        return redirect('routines:routine_detail', routine_id=created_routines[0].id)
+        return redirect(ROUTINE_DETAIL_URL, routine_id=created_routines[0].id)
     else:
         messages.error(request, 'Could not generate exercises for the 3-day split. Try different equipment.')
         context = {
@@ -737,7 +792,7 @@ def handle_3_day_split(request, routine_name, equipment, sets_per_exercise, rest
             'special_splits': special_splits,
             'all_muscles': get_available_muscles(),
         }
-        return render(request, 'routines/routine_generator.html', context)
+        return render(request, ROUTINE_GENERATOR_TEMPLATE, context)
 
 
 def generate_routine_exercises(target_muscles, equipment, max_exercises=5):

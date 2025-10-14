@@ -157,3 +157,10 @@ static_root/
 .env.development.local
 .env.test.local
 .env.production.local
+
+# MCP Configuration (contains sensitive tokens)
+.vscode/mcp.json
+.cursor/mcp.json
+.claude.json
+**/mcp.json
+!**/mcp.json.example

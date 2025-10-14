@@ -96,11 +96,11 @@
                         <button type="button" class="btn btn-outline-secondary btn-sm flex-fill" onclick="if(window.exerciseFilter) window.exerciseFilter.clearAllFilters(); else console.log('exerciseFilter not ready')">
                             <i class="bi bi-x-circle"></i> Clear
                         </button>
-                        <div class="loading-indicator" style="display: none;">
-                            <div class="spinner-border spinner-border-sm" role="status">
+                        <output class="loading-indicator" style="display: none;" aria-live="polite">
+                            <div class="spinner-border spinner-border-sm">
                                 <span class="visually-hidden">Loading...</span>
                             </div>
-                        </div>
+                        </output>
                     </div>
                 </div>
             </div>
@@ -125,32 +125,29 @@
                             <div class="d-flex justify-content-between align-items-center mb-1">
                                 <h6 class="card-title mb-0 me-2">{{ exercise.title|default:exercise.name }}</h6>
                                 <div class="d-flex gap-1 flex-wrap">
-                                    <span class="badge bg-{{ exercise.difficulty|lower }}-level badge-sm clickable-badge"
+                                    <button type="button" class="badge bg-{{ exercise.difficulty|lower }}-level badge-sm clickable-badge border-0"
                                           data-filter-type="difficulty"
                                           data-filter-value="{{ exercise.difficulty }}"
-                                          title="Click to filter by {{ exercise.difficulty }}"
-                                          role="button">
+                                          title="Click to filter by {{ exercise.difficulty }}">
                                         {{ exercise.difficulty|title }}
-                                    </span>
+                                    </button>
 
                                     {% if exercise.muscle %}
-                                        <span class="badge bg-primary badge-sm clickable-badge"
+                                        <button type="button" class="badge bg-primary badge-sm clickable-badge border-0"
                                               data-filter-type="muscle"
                                               data-filter-value="{{ exercise.muscle }}"
-                                              title="Click to filter by {{ exercise.muscle|title }}"
-                                              role="button">
+                                              title="Click to filter by {{ exercise.muscle|title }}">
                                             {{ exercise.muscle|title }}
-                                        </span>
+                                        </button>
                                     {% endif %}
 
                                     {% if exercise.equipment %}
-                                        <span class="badge bg-secondary badge-sm clickable-badge"
+                                        <button type="button" class="badge bg-secondary badge-sm clickable-badge border-0"
                                               data-filter-type="equipment"
                                               data-filter-value="{{ exercise.equipment }}"
-                                              title="Click to filter by {{ exercise.get_equipment_display }}"
-                                              role="button">
+                                              title="Click to filter by {{ exercise.get_equipment_display }}">
                                             {{ exercise.get_equipment_display }}
-                                        </span>
+                                        </button>
                                     {% endif %}
                                 </div>
                             </div>
