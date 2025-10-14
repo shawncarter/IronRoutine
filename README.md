@@ -107,18 +107,53 @@ See [EXERCISE_INTEGRATION.md](EXERCISE_INTEGRATION.md) for detailed documentatio
    ```bash
    pip install django
    ```
-4. Run migrations:
+4. **Set up environment variables** (IMPORTANT for production):
+   ```bash
+   # Copy the example environment file
+   cp .env.example .env
+
+   # Generate a new SECRET_KEY
+   python -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())'
+
+   # Edit .env and set DJANGO_SECRET_KEY to the generated key
+   ```
+5. Run migrations:
    ```bash
    python manage.py migrate
    ```
-5. Create a superuser:
+6. Create a superuser:
    ```bash
    python manage.py createsuperuser
    ```
-6. Start the development server:
+7. Start the development server:
    ```bash
    python manage.py runserver
    ```
+
+## 🔒 Security
+
+### Environment Variables
+
+**IMPORTANT**: Never commit your `.env` file or expose your `SECRET_KEY` in production!
+
+- Copy `.env.example` to `.env` and set your own values
+- Generate a new `SECRET_KEY` for production using:
+  ```bash
+  python -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())'
+  ```
+- Set `DEBUG=False` in production
+- Configure `ALLOWED_HOSTS` for your domain
+
+### Production Deployment
+
+Before deploying to production:
+1. ✅ Set `DJANGO_SECRET_KEY` environment variable
+2. ✅ Set `DEBUG=False`
+3. ✅ Configure `ALLOWED_HOSTS`
+4. ✅ Use a production database (PostgreSQL recommended)
+5. ✅ Enable HTTPS
+6. ✅ Configure static file serving
+7. ✅ Set up proper logging
 
 ## 📈 Current Status
 
