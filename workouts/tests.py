@@ -130,7 +130,8 @@ class WorkoutSessionViewTests(TestCase):
         self.assertEqual(session.user, self.user)
 
     def test_workout_session_page_loads(self):
-        """Test that workout session page loads"""
+        """Test that workout session page loads when logged in"""
+        self.client.login(username='testuser', password='testpass123!@#')
         session = WorkoutSession.objects.create(
             routine=self.routine,
             user=self.user

@@ -45,7 +45,7 @@ htmlcov/
 .coverage.*
 .cache
 nosetests.xml
-coverage.xml
+# coverage.xml  # Keep coverage.xml for SonarQube
 *.cover
 *.py,cover
 .hypothesis/
