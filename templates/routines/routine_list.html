@@ -8,9 +8,14 @@
         {% if user.is_authenticated %}My Routines{% else %}Workout Routines{% endif %}
     </h1>
     {% if user.is_authenticated %}
-    <a href="{% url 'routines:routine_create' %}" class="btn btn-primary">
-        + Create New Routine
-    </a>
+    <div class="flex gap-2">
+        <a href="{% url 'routines:routine_create' %}" class="btn btn-primary">
+            + Create New Routine
+        </a>
+        <a href="{% url 'routines:routine_generator' %}" class="btn btn-success">
+            🎯 Generate Routine
+        </a>
+    </div>
     {% else %}
     <a href="{% url 'accounts:login' %}" class="btn btn-primary">
         Login to Create Routines

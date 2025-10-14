@@ -129,6 +129,31 @@ def save_workout_set(request):
         })
 
 
+def workout_exercise_sets_api(request, session_id, exercise_id):
+    """API endpoint to fetch completed sets for an exercise in a workout session"""
+    session = get_object_or_404(WorkoutSession, id=session_id)
+    exercise = get_object_or_404(Exercise, id=exercise_id)
+    
+    # Get completed sets
+    completed_sets = session.workout_sets.filter(exercise=exercise).order_by('set_number')
+    
+    sets_data = []
+    for workout_set in completed_sets:
+        sets_data.append({
+            'set_number': workout_set.set_number,
+            'weight': float(workout_set.weight),
+            'reps': workout_set.reps,
+            'volume': float(workout_set.volume),
+            'completed_at': workout_set.completed_at.strftime('%I:%M %p'),
+        })
+    
+    return JsonResponse({
+        'success': True,
+        'sets': sets_data,
+        'total_sets': len(sets_data)
+    })
+
+
 def workout_complete(request, session_id):
     session = get_object_or_404(WorkoutSession, id=session_id)
     

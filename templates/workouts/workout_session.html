@@ -18,12 +18,14 @@
         </div>
     </div>
     
-    <!-- Current Exercise -->
+    <!-- Current Exercise Section -->
     {% if current_exercise %}
         <div class="card mb-6">
-            <div class="card-header">Current Exercise</div>
+            <div class="card-header bg-success text-white">
+                <i class="bi bi-play-circle"></i> Current Exercise
+            </div>
             <div class="card-body">
-                <h2 class="text-2xl font-bold mb-4">{{ current_exercise.exercise.name }}</h2>
+                <h2 class="text-2xl font-bold mb-2">{{ current_exercise.exercise.name }}</h2>
                 <p class="text-muted mb-4">{{ current_exercise.exercise.description }}</p>
                 
                 <div class="flex gap-4 mb-4">
@@ -37,59 +39,161 @@
                     </div>
                 </div>
                 
-                <div class="flex gap-4">
-                    <a href="{% url 'workouts:workout_exercise' session.id current_exercise.exercise.id %}" 
-                       class="btn btn-success btn-lg">
-                        Start Exercise
-                    </a>
-                    <a href="{% url 'exercises:exercise_detail' current_exercise.exercise.id %}" 
-                       class="btn btn-secondary">
-                        View Instructions
-                    </a>
-                </div>
+                <p class="text-sm mb-4">Expand the exercise below to view instructions, videos, and log your sets directly!</p>
             </div>
         </div>
     {% endif %}
     
-    <!-- Exercise Progress -->
-    <div class="card">
-        <div class="card-header">Workout Progress</div>
-        <div class="card-body">
-            {% for progress in exercise_progress %}
-                <div class="exercise-progress">
+    <!-- Expandable Exercise Cards -->
+    <div class="workout-exercises">
+        {% for progress in exercise_progress %}
+            <div class="exercise-card {% if progress.is_current %}current-exercise{% endif %} {% if progress.is_complete %}completed-exercise{% endif %}" 
+                 data-exercise-id="{{ progress.routine_exercise.exercise.id }}"
+                 data-routine-exercise-id="{{ progress.routine_exercise.id }}">
+                
+                <!-- Exercise Header (Always Visible) -->
+                <div class="exercise-header" onclick="toggleExercise({{ progress.routine_exercise.exercise.id }})">
                     <div class="flex justify-between items-center">
-                        <div>
-                            <h3 class="text-lg font-semibold">{{ progress.routine_exercise.exercise.name }}</h3>
-                            <div class="text-sm text-muted">
-                                {{ progress.routine_exercise.exercise.get_muscle_groups_display }}
+                        <div class="flex-1">
+                            <div class="flex items-center gap-3">
+                                <div class="exercise-status-icon">
+                                    {% if progress.is_complete %}
+                                        <i class="bi bi-check-circle-fill text-success"></i>
+                                    {% elif progress.is_current %}
+                                        <i class="bi bi-play-circle-fill text-primary"></i>
+                                    {% else %}
+                                        <i class="bi bi-circle text-muted"></i>
+                                    {% endif %}
+                                </div>
+                                <div>
+                                    <h3 class="exercise-title">{{ progress.routine_exercise.exercise.name }}</h3>
+                                    <div class="exercise-meta">
+                                        <span class="badge badge-primary">{{ progress.routine_exercise.exercise.get_equipment_display }}</span>
+                                        {% if progress.routine_exercise.exercise.muscle %}
+                                        <span class="badge badge-secondary">{{ progress.routine_exercise.exercise.muscle|title }}</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
                             </div>
                         </div>
                         <div class="text-right">
-                            <div class="text-lg font-bold">
-                                {{ progress.completed_sets_count }} / {{ progress.routine_exercise.sets_count }}
+                            <div class="sets-progress">
+                                <span class="sets-count">{{ progress.completed_sets_count }} / {{ progress.routine_exercise.sets_count }}</span>
+                                <div class="sets-label">sets</div>
                             </div>
-                            <div class="text-sm text-muted">sets completed</div>
+                            <div class="expand-icon">
+                                <i class="bi bi-chevron-down"></i>
+                            </div>
                         </div>
                     </div>
                     
                     <!-- Progress Bar -->
-                    <div class="w-full bg-gray-200 rounded-full h-2 mt-2">
-                        <div class="bg-blue-600 h-2 rounded-full transition-all duration-300" 
-                             style="width: {{ progress.progress_percent }}%"></div>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: {{ progress.progress_percent }}%"></div>
+                        </div>
                     </div>
-                    
-                    {% if progress.is_complete %}
-                        <div class="text-green-600 text-sm mt-1">✓ Complete</div>
-                    {% elif progress.is_current %}
-                        <div class="text-blue-600 text-sm mt-1">→ Current</div>
-                    {% endif %}
                 </div>
                 
-                {% if not forloop.last %}
-                    <hr class="my-4">
-                {% endif %}
-            {% endfor %}
-        </div>
+                <!-- Exercise Details (Expandable) -->
+                <div class="exercise-details" style="display: none;">
+                    <div class="details-content">
+                        
+                        <!-- Exercise Info Row -->
+                        <div class="exercise-info-row">
+                            <!-- Instructions Column -->
+                            <div class="instructions-column">
+                                <h4 class="section-title">Instructions</h4>
+                                {% with instructions=progress.routine_exercise.exercise.get_instructions_list %}
+                                {% if instructions %}
+                                <ol class="instruction-list">
+                                    {% for instruction in instructions %}
+                                    <li class="instruction-item">{{ instruction }}</li>
+                                    {% endfor %}
+                                </ol>
+                                {% else %}
+                                <p class="text-muted">No instructions available.</p>
+                                {% endif %}
+                                {% endwith %}
+                                
+                                <!-- Exercise Stats -->
+                                <div class="exercise-stats">
+                                    <div class="stat-item">
+                                        <strong>Sets:</strong> {{ progress.routine_exercise.sets_count }}
+                                    </div>
+                                    <div class="stat-item">
+                                        <strong>Rest:</strong> {{ progress.routine_exercise.rest_time_seconds }}s
+                                    </div>
+                                    {% if progress.routine_exercise.target_weight %}
+                                    <div class="stat-item">
+                                        <strong>Target Weight:</strong> {{ progress.routine_exercise.target_weight }}kg
+                                    </div>
+                                    {% endif %}
+                                    {% if progress.routine_exercise.target_reps %}
+                                    <div class="stat-item">
+                                        <strong>Target Reps:</strong> {{ progress.routine_exercise.target_reps }}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <!-- Videos Column -->
+                            <div class="videos-column">
+                                <h4 class="section-title">Exercise Videos</h4>
+                                {% if progress.routine_exercise.exercise.has_videos %}
+                                <div class="video-controls mb-2">
+                                    <button class="btn btn-xs btn-primary active" onclick="switchExerciseGender({{ progress.routine_exercise.exercise.id }}, 'male')" id="male-btn-{{ progress.routine_exercise.exercise.id }}">Male</button>
+                                    <button class="btn btn-xs btn-outline" onclick="switchExerciseGender({{ progress.routine_exercise.exercise.id }}, 'female')" id="female-btn-{{ progress.routine_exercise.exercise.id }}">Female</button>
+                                </div>
+                                <div class="exercise-videos" id="videos-{{ progress.routine_exercise.exercise.id }}">
+                                    <!-- Videos will be loaded via JavaScript -->
+                                </div>
+                                {% else %}
+                                <p class="text-muted">No videos available for this exercise.</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <!-- Set Logging Section -->
+                        <div class="set-logging-section">
+                            <h4 class="section-title">Log Your Sets</h4>
+                            
+                            <!-- Completed Sets -->
+                            <div class="completed-sets" id="completed-sets-{{ progress.routine_exercise.exercise.id }}">
+                                <!-- Completed sets will be loaded via JavaScript -->
+                            </div>
+                            
+                            <!-- Current Set Input (only if not complete) -->
+                            {% if not progress.is_complete %}
+                            <div class="current-set-input" id="current-set-{{ progress.routine_exercise.exercise.id }}">
+                                <div class="set-input-form">
+                                    <div class="set-inputs">
+                                        <div class="input-group">
+                                            <label>Weight (kg)</label>
+                                            <input type="number" class="form-control" id="weight-{{ progress.routine_exercise.exercise.id }}" step="0.5" min="0" value="{{ progress.routine_exercise.target_weight|default:'' }}">
+                                        </div>
+                                        <div class="input-group">
+                                            <label>Reps</label>
+                                            <input type="number" class="form-control" id="reps-{{ progress.routine_exercise.exercise.id }}" min="1" value="{{ progress.routine_exercise.target_reps|default:'' }}">
+                                        </div>
+                                        <div class="input-group">
+                                            <label>Volume</label>
+                                            <div class="volume-display" id="volume-{{ progress.routine_exercise.exercise.id }}">0kg</div>
+                                        </div>
+                                        <div class="input-group">
+                                            <button type="button" class="btn btn-success" id="set-button-{{ progress.routine_exercise.exercise.id }}" onclick="saveSetInline({{ session.id }}, {{ progress.routine_exercise.exercise.id }}, {{ progress.routine_exercise.sets_count }})">
+                                                Complete Set {% if progress.completed_sets_count %}{{ progress.completed_sets_count|add:1 }}{% else %}1{% endif %}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
     </div>
     
     <!-- Actions -->
@@ -114,30 +218,454 @@
 </div>
 
 <style>
-.bg-gray-200 {
-    background-color: #e5e7eb;
+/* Exercise Card Styles */
+.workout-exercises {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
 }
 
-.bg-blue-600 {
-    background-color: #2563eb;
+.exercise-card {
+    background: white;
+    border: 2px solid #e5e7eb;
+    border-radius: 12px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.text-green-600 {
-    color: #16a34a;
+.exercise-card.current-exercise {
+    border-color: #3b82f6;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
 }
 
-.text-blue-600 {
-    color: #2563eb;
+.exercise-card.completed-exercise {
+    border-color: #10b981;
+    background: #f0fdf4;
 }
 
-.bg-black {
-    background-color: rgba(0, 0, 0, 0.5);
+.exercise-header {
+    padding: 1.25rem;
+    cursor: pointer;
+    transition: background-color 0.2s;
 }
 
-.bg-opacity-50 {
-    background-opacity: 0.5;
+.exercise-header:hover {
+    background: #f8fafc;
 }
 
+.exercise-card.expanded .exercise-header {
+    background: #f1f5f9;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.exercise-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin: 0 0 0.5rem 0;
+    color: #1f2937;
+}
+
+.exercise-meta {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.sets-progress {
+    text-align: right;
+}
+
+.sets-count {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: #1f2937;
+}
+
+.sets-label {
+    font-size: 0.875rem;
+    color: #6b7280;
+}
+
+.expand-icon {
+    margin-left: 1rem;
+    transition: transform 0.3s ease;
+}
+
+.exercise-card.expanded .expand-icon {
+    transform: rotate(180deg);
+}
+
+.progress-bar-container {
+    margin-top: 0.75rem;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 6px;
+    background: #e5e7eb;
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #3b82f6, #1d4ed8);
+    border-radius: 3px;
+    transition: width 0.4s ease;
+}
+
+.exercise-card.completed-exercise .progress-fill {
+    background: linear-gradient(90deg, #10b981, #059669);
+}
+
+/* Exercise Details */
+.exercise-details {
+    border-top: 1px solid #e2e8f0;
+    animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.details-content {
+    padding: 1.5rem;
+}
+
+.exercise-info-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    margin-bottom: 2rem;
+}
+
+@media (max-width: 768px) {
+    .exercise-info-row {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+}
+
+.section-title {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    color: #374151;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.section-title::before {
+    content: '';
+    width: 3px;
+    height: 1rem;
+    background: #3b82f6;
+    border-radius: 2px;
+}
+
+/* Instructions */
+.instruction-list {
+    list-style: none;
+    counter-reset: instruction-counter;
+    padding: 0;
+    margin: 0;
+}
+
+.instruction-item {
+    counter-increment: instruction-counter;
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    background: #f8fafc;
+    border-left: 3px solid #3b82f6;
+    border-radius: 4px;
+    position: relative;
+    padding-left: 2.5rem;
+}
+
+.instruction-item::before {
+    content: counter(instruction-counter);
+    position: absolute;
+    left: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    background: #3b82f6;
+    color: white;
+    width: 1.25rem;
+    height: 1.25rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 0.75rem;
+}
+
+/* Exercise Stats */
+.exercise-stats {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: #f0f9ff;
+    border-radius: 8px;
+    border: 1px solid #e0f2fe;
+}
+
+.stat-item {
+    margin-bottom: 0.5rem;
+    font-size: 0.875rem;
+}
+
+.stat-item:last-child {
+    margin-bottom: 0;
+}
+
+/* Videos */
+.video-controls {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.exercise-videos {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+@media (max-width: 768px) {
+    .exercise-videos {
+        grid-template-columns: 1fr;
+    }
+}
+
+.video-container {
+    background: #000;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.video-container video {
+    width: 100%;
+    height: auto;
+    max-height: 200px;
+}
+
+.video-label {
+    padding: 0.5rem;
+    text-align: center;
+    background: #f8fafc;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #374151;
+}
+
+/* Set Logging */
+.set-logging-section {
+    border-top: 1px solid #e2e8f0;
+    padding-top: 1.5rem;
+}
+
+.completed-sets {
+    margin-bottom: 1rem;
+}
+
+.completed-set {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem;
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 6px;
+    margin-bottom: 0.5rem;
+}
+
+.set-inputs {
+    display: grid;
+    grid-template-columns: 200px 200px 150px 1fr;
+    gap: 1.5rem;
+    align-items: end;
+}
+
+@media (max-width: 768px) {
+    .set-inputs {
+        grid-template-columns: 180px 180px;
+        gap: 1rem;
+    }
+    
+    .set-inputs .input-group:nth-child(3), 
+    .set-inputs .input-group:nth-child(4) {
+        grid-column: 1 / -1;
+        max-width: 400px;
+    }
+}
+
+.input-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.input-group label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    margin-bottom: 0.25rem;
+    color: #374151;
+}
+
+.form-control {
+    padding: 1.5rem 2rem !important;
+    border: 2px solid #d1d5db !important;
+    border-radius: 12px !important;
+    font-size: 2rem !important;
+    font-weight: 800 !important;
+    min-height: 80px !important;
+    height: 80px !important;
+    text-align: center !important;
+    width: 100% !important;
+    line-height: 1 !important;
+    box-sizing: border-box !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    -webkit-text-fill-color: #000000 !important;
+    -webkit-opacity: 1 !important;
+    opacity: 1 !important;
+    text-shadow: none !important;
+    font-family: Arial, sans-serif !important;
+}
+
+/* Additional debugging styles */
+input[type="number"] {
+    color: #000000 !important;
+    background: #ffffff !important;
+    -webkit-text-fill-color: #000000 !important;
+    -webkit-appearance: none !important;
+    appearance: none !important;
+}
+
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none !important;
+    margin: 0 !important;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.volume-display {
+    padding: 1.5rem 2rem;
+    background: #f3f4f6;
+    border: 3px solid #d1d5db;
+    border-radius: 12px;
+    font-weight: 800;
+    text-align: center;
+    color: #000000 !important;
+    font-size: 2rem;
+    min-height: 80px;
+    height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    line-height: 1;
+    box-sizing: border-box;
+}
+
+/* Badges */
+.badge {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.badge-primary {
+    background: #3b82f6;
+    color: white;
+}
+
+.badge-secondary {
+    background: #6b7280;
+    color: white;
+}
+
+/* Buttons */
+.btn {
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-weight: 500;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-xs {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+}
+
+.btn-primary {
+    background: #3b82f6;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #2563eb;
+}
+
+.btn-outline {
+    background: transparent;
+    border: 1px solid #3b82f6;
+    color: #3b82f6;
+}
+
+.btn-outline:hover {
+    background: #3b82f6;
+    color: white;
+}
+
+.btn-success {
+    background: #10b981;
+    color: white;
+}
+
+.btn-success:hover {
+    background: #059669;
+}
+
+.btn-outline.active, .btn-primary.active {
+    background: #3b82f6;
+    color: white;
+}
+
+/* Status Colors */
+.text-success {
+    color: #10b981;
+}
+
+.text-primary {
+    color: #3b82f6;
+}
+
+.text-muted {
+    color: #6b7280;
+}
+
+.bg-success {
+    background: #10b981;
+}
+
+/* Rest Timer */
 .fixed {
     position: fixed;
 }
@@ -152,5 +680,478 @@
 .z-50 {
     z-index: 50;
 }
+
+.bg-black {
+    background-color: rgba(0, 0, 0, 0.7);
+}
+
+.bg-opacity-50 {
+    background-opacity: 0.5;
+}
 </style>
+
+<script>
+// Workout Session Namespace to avoid conflicts
+const WorkoutSession = {
+    exerciseData: {},
+    restTimer: null,
+    restTimeRemaining: 0
+};
+
+// Initialize exercise data from Django template
+document.addEventListener('DOMContentLoaded', function() {
+    {% for progress in exercise_progress %}
+    WorkoutSession.exerciseData[{{ progress.routine_exercise.exercise.id }}] = {
+        id: {{ progress.routine_exercise.exercise.id }},
+        name: '{{ progress.routine_exercise.exercise.name|escapejs }}',
+        totalSets: {{ progress.routine_exercise.sets_count }},
+        completedSets: {{ progress.completed_sets_count }},
+        restTime: {{ progress.routine_exercise.rest_time_seconds }},
+        targetWeight: {{ progress.routine_exercise.target_weight|default:'null' }},
+        targetReps: {{ progress.routine_exercise.target_reps|default:'null' }},
+        hasVideos: {% if progress.routine_exercise.exercise.has_videos %}true{% else %}false{% endif %},
+        videos: {
+            male: {
+                front: '{{ progress.routine_exercise.exercise.male_videos.front|default:""|escapejs }}',
+                side: '{{ progress.routine_exercise.exercise.male_videos.side|default:""|escapejs }}'
+            },
+            female: {
+                front: '{{ progress.routine_exercise.exercise.female_videos.front|default:""|escapejs }}',
+                side: '{{ progress.routine_exercise.exercise.female_videos.side|default:""|escapejs }}'
+            }
+        },
+        isComplete: {% if progress.is_complete %}true{% else %}false{% endif %},
+        isCurrent: {% if progress.is_current %}true{% else %}false{% endif %}
+    };
+    {% endfor %}
+    
+    // Initialize volume calculations
+    initializeVolumeCalculations();
+    
+    // Load completed sets for all exercises
+    loadAllCompletedSets();
+});
+
+// Toggle exercise expansion
+function toggleExercise(exerciseId) {
+    const card = document.querySelector(`[data-exercise-id="${exerciseId}"]`);
+    const details = card.querySelector('.exercise-details');
+    const isExpanded = card.classList.contains('expanded');
+    
+    if (isExpanded) {
+        card.classList.remove('expanded');
+        details.style.display = 'none';
+    } else {
+        // Close all other expanded cards
+        document.querySelectorAll('.exercise-card.expanded').forEach(otherCard => {
+            if (otherCard !== card) {
+                otherCard.classList.remove('expanded');
+                otherCard.querySelector('.exercise-details').style.display = 'none';
+            }
+        });
+        
+        card.classList.add('expanded');
+        details.style.display = 'block';
+        
+        // Load videos if first time opening
+        if (WorkoutSession.exerciseData[exerciseId].hasVideos) {
+            loadExerciseVideos(exerciseId, 'male');
+        }
+        
+        // Update volume calculation
+        updateExerciseVolume(exerciseId);
+    }
+}
+
+// Switch video gender
+function switchExerciseGender(exerciseId, gender) {
+    const maleBtn = document.getElementById(`male-btn-${exerciseId}`);
+    const femaleBtn = document.getElementById(`female-btn-${exerciseId}`);
+    
+    // Update button states
+    if (gender === 'male') {
+        maleBtn.classList.add('btn-primary', 'active');
+        maleBtn.classList.remove('btn-outline');
+        femaleBtn.classList.remove('btn-primary', 'active');
+        femaleBtn.classList.add('btn-outline');
+    } else {
+        femaleBtn.classList.add('btn-primary', 'active');
+        femaleBtn.classList.remove('btn-outline');
+        maleBtn.classList.remove('btn-primary', 'active');
+        maleBtn.classList.add('btn-outline');
+    }
+    
+    // Load videos
+    loadExerciseVideos(exerciseId, gender);
+}
+
+// Load exercise videos
+function loadExerciseVideos(exerciseId, gender) {
+    const videosContainer = document.getElementById(`videos-${exerciseId}`);
+    if (!videosContainer) return;
+    
+    const videos = WorkoutSession.exerciseData[exerciseId].videos[gender];
+    let html = '';
+    
+    if (videos.front || videos.side) {
+        if (videos.front) {
+            const frontPath = videos.front.replace('videos/', '');
+            html += `
+                <div class="video-container">
+                    <video controls muted loop preload="auto" autoplay>
+                        <source src="/static/${frontPath}?v=${exerciseId}-${gender}" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>
+                    <div class="video-label">Front View</div>
+                </div>
+            `;
+        }
+        
+        if (videos.side) {
+            const sidePath = videos.side.replace('videos/', '');
+            html += `
+                <div class="video-container">
+                    <video controls muted loop preload="auto" autoplay>
+                        <source src="/static/${sidePath}?v=${exerciseId}-${gender}" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>
+                    <div class="video-label">Side View</div>
+                </div>
+            `;
+        }
+    } else {
+        html = '<p class="text-muted">No videos available for this view.</p>';
+    }
+    
+    videosContainer.innerHTML = html;
+    
+    // Programmatically start videos after insertion
+    setTimeout(() => {
+        const videos = videosContainer.querySelectorAll('video');
+        videos.forEach(video => {
+            video.load(); // Reload the video element
+            video.play().catch(error => {
+                // Autoplay blocked, that's fine - user can manually play
+                console.log('Autoplay blocked for video:', error);
+            });
+        });
+    }, 100);
+}
+
+// Load completed sets for all exercises
+function loadAllCompletedSets() {
+    {% for progress in exercise_progress %}
+    loadCompletedSetsForExercise({{ progress.routine_exercise.exercise.id }});
+    {% endfor %}
+}
+
+// Load completed sets for specific exercise
+function loadCompletedSetsForExercise(exerciseId) {
+    fetch(`/workouts/session/{{ session.id }}/exercise/${exerciseId}/sets/`)
+    .then(response => response.json())
+    .then(data => {
+        const container = document.getElementById(`completed-sets-${exerciseId}`);
+        if (!container) return;
+        
+        if (data.sets && data.sets.length > 0) {
+            container.innerHTML = data.sets.map(set => `
+                <div class="completed-set">
+                    <div>
+                        <strong>Set ${set.set_number}</strong>
+                        <span class="text-muted ml-2">${set.completed_at}</span>
+                    </div>
+                    <div class="text-right">
+                        <div class="font-bold">${set.weight}kg × ${set.reps} reps</div>
+                        <div class="text-sm text-muted">Volume: ${set.volume}kg</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+    })
+    .catch(error => console.error('Error loading sets:', error));
+}
+
+// Initialize volume calculations
+function initializeVolumeCalculations() {
+    Object.keys(WorkoutSession.exerciseData).forEach(exerciseId => {
+        const weightInput = document.getElementById(`weight-${exerciseId}`);
+        const repsInput = document.getElementById(`reps-${exerciseId}`);
+        
+        if (weightInput && repsInput) {
+            weightInput.addEventListener('input', () => updateExerciseVolume(exerciseId));
+            repsInput.addEventListener('input', () => updateExerciseVolume(exerciseId));
+        }
+    });
+}
+
+// Update exercise volume display
+function updateExerciseVolume(exerciseId) {
+    const weightInput = document.getElementById(`weight-${exerciseId}`);
+    const repsInput = document.getElementById(`reps-${exerciseId}`);
+    const volumeDisplay = document.getElementById(`volume-${exerciseId}`);
+    
+    if (weightInput && repsInput && volumeDisplay) {
+        const weight = parseFloat(weightInput.value) || 0;
+        const reps = parseInt(repsInput.value) || 0;
+        const volume = weight * reps;
+        volumeDisplay.textContent = volume.toFixed(1) + 'kg';
+    }
+}
+
+// Save set inline (AJAX)
+function saveSetInline(sessionId, exerciseId, totalSets) {
+    const weightInput = document.getElementById(`weight-${exerciseId}`);
+    const repsInput = document.getElementById(`reps-${exerciseId}`);
+    
+    if (!weightInput || !repsInput) {
+        alert('Please fill in both weight and reps');
+        return;
+    }
+    
+    const weight = parseFloat(weightInput.value);
+    const reps = parseInt(repsInput.value);
+    
+    if (isNaN(weight) || isNaN(reps) || weight <= 0 || reps <= 0) {
+        alert('Please enter valid weight and reps');
+        return;
+    }
+    
+    const nextSetNumber = WorkoutSession.exerciseData[exerciseId].completedSets + 1;
+    
+    // Disable form while saving
+    const button = event.target;
+    button.disabled = true;
+    button.textContent = 'Saving...';
+    
+    // Create form data
+    const formData = new FormData();
+    formData.append('session_id', sessionId);
+    formData.append('exercise_id', exerciseId);
+    formData.append('set_number', nextSetNumber);
+    formData.append('weight', weight);
+    formData.append('reps', reps);
+    formData.append('csrfmiddlewaretoken', getCsrfToken());
+    
+    // Send to server
+    fetch('/workouts/set/save/', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Update exercise data
+            WorkoutSession.exerciseData[exerciseId].completedSets++;
+            
+            // Add completed set to display
+            addCompletedSetToDisplay(exerciseId, nextSetNumber, weight, reps, data.volume);
+            
+            // Update progress bar
+            updateProgressBar(exerciseId);
+            
+            // Check if exercise is complete
+            if (WorkoutSession.exerciseData[exerciseId].completedSets >= WorkoutSession.exerciseData[exerciseId].totalSets) {
+                markExerciseComplete(exerciseId);
+            } else {
+                // Reset form for next set
+                resetSetForm(exerciseId, weight, reps);
+                
+                // Start rest timer
+                if (data.rest_time && data.rest_time > 0) {
+                    startRestTimer(data.rest_time);
+                }
+            }
+        } else {
+            alert('Error saving set: ' + (data.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error saving set');
+    })
+    .finally(() => {
+        button.disabled = false;
+        const currentSetNum = WorkoutSession.exerciseData[exerciseId].completedSets + 1;
+        button.textContent = `Complete Set ${currentSetNum}`;
+    });
+}
+
+// Add completed set to display
+function addCompletedSetToDisplay(exerciseId, setNumber, weight, reps, volume) {
+    const container = document.getElementById(`completed-sets-${exerciseId}`);
+    const now = new Date();
+    const timeString = now.toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'});
+    
+    const setDiv = document.createElement('div');
+    setDiv.className = 'completed-set';
+    setDiv.innerHTML = `
+        <div>
+            <strong>Set ${setNumber}</strong>
+            <span class="text-muted ml-2">${timeString}</span>
+        </div>
+        <div class="text-right">
+            <div class="font-bold">${weight}kg × ${reps} reps</div>
+            <div class="text-sm text-muted">Volume: ${volume}kg</div>
+        </div>
+    `;
+    
+    container.appendChild(setDiv);
+}
+
+// Update progress bar
+function updateProgressBar(exerciseId) {
+    const card = document.querySelector(`[data-exercise-id="${exerciseId}"]`);
+    const progressFill = card.querySelector('.progress-fill');
+    const setsCount = card.querySelector('.sets-count');
+    
+    const completedSets = WorkoutSession.exerciseData[exerciseId].completedSets;
+    const totalSets = WorkoutSession.exerciseData[exerciseId].totalSets;
+    const percentage = Math.round((completedSets / totalSets) * 100);
+    
+    progressFill.style.width = percentage + '%';
+    setsCount.textContent = `${completedSets} / ${totalSets}`;
+}
+
+// Mark exercise as complete
+function markExerciseComplete(exerciseId) {
+    const card = document.querySelector(`[data-exercise-id="${exerciseId}"]`);
+    const statusIcon = card.querySelector('.exercise-status-icon i');
+    const setInput = document.getElementById(`current-set-${exerciseId}`);
+    
+    card.classList.add('completed-exercise');
+    statusIcon.className = 'bi bi-check-circle-fill text-success';
+    
+    if (setInput) {
+        setInput.innerHTML = `
+            <div class="text-center py-4">
+                <i class="bi bi-check-circle-fill text-success fs-1"></i>
+                <h4 class="text-success mt-2">Exercise Complete! 🎉</h4>
+                <p class="text-muted">Great work! All sets completed.</p>
+            </div>
+        `;
+    }
+    
+    // Check if workout is complete
+    checkWorkoutComplete();
+}
+
+// Reset set form for next set
+function resetSetForm(exerciseId, previousWeight, previousReps) {
+    const weightInput = document.getElementById(`weight-${exerciseId}`);
+    const repsInput = document.getElementById(`reps-${exerciseId}`);
+    const setButton = document.getElementById(`set-button-${exerciseId}`);
+    
+    // Carry forward previous values
+    if (weightInput) weightInput.value = previousWeight || '';
+    if (repsInput) repsInput.value = previousReps || '';
+    
+    // Update button text for next set
+    if (setButton) {
+        const nextSetNum = WorkoutSession.exerciseData[exerciseId].completedSets + 1;
+        setButton.textContent = `Complete Set ${nextSetNum}`;
+    }
+    
+    updateExerciseVolume(exerciseId);
+}
+
+// Check if workout is complete
+function checkWorkoutComplete() {
+    const allComplete = Object.values(WorkoutSession.exerciseData).every(ex => ex.completedSets >= ex.totalSets);
+    if (allComplete) {
+        setTimeout(() => {
+            if (confirm('Workout complete! Would you like to finish and review your results?')) {
+                window.location.href = `/workouts/complete/{{ session.id }}/`;
+            }
+        }, 1500);
+    }
+}
+
+// Rest timer functions
+function startRestTimer(seconds) {
+    if (WorkoutSession.restTimer) clearInterval(WorkoutSession.restTimer);
+    
+    WorkoutSession.restTimeRemaining = seconds;
+    showRestTimer();
+    updateTimerDisplay();
+    
+    WorkoutSession.restTimer = setInterval(() => {
+        WorkoutSession.restTimeRemaining--;
+        updateTimerDisplay();
+        
+        if (WorkoutSession.restTimeRemaining <= 0) {
+            clearInterval(WorkoutSession.restTimer);
+            onRestTimerComplete();
+        }
+    }, 1000);
+}
+
+function showRestTimer() {
+    const timerElement = document.getElementById('rest-timer');
+    if (timerElement) {
+        timerElement.classList.remove('hidden');
+        timerElement.style.display = 'flex';
+    }
+}
+
+function hideRestTimer() {
+    const timerElement = document.getElementById('rest-timer');
+    if (timerElement) {
+        timerElement.classList.add('hidden');
+        timerElement.style.display = 'none';
+    }
+}
+
+function updateTimerDisplay() {
+    const display = document.getElementById('timer-display');
+    if (display) {
+        const minutes = Math.floor(WorkoutSession.restTimeRemaining / 60);
+        const seconds = WorkoutSession.restTimeRemaining % 60;
+        display.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    }
+}
+
+function onRestTimerComplete() {
+    const timerElement = document.getElementById('rest-timer');
+    if (timerElement) {
+        timerElement.innerHTML = `
+            <div class="bg-white rounded-lg p-6 max-w-sm w-full mx-4">
+                <div class="timer-display">
+                    <div>Rest Complete! 🎯</div>
+                    <div style="font-size: 1rem; margin-top: 0.5rem;">Ready for next set</div>
+                </div>
+                <div class="timer-controls">
+                    <button class="btn btn-primary" onclick="hideRestTimer()">Continue</button>
+                </div>
+            </div>
+        `;
+    }
+}
+
+function stopRestTimer() {
+    if (WorkoutSession.restTimer) {
+        clearInterval(WorkoutSession.restTimer);
+        WorkoutSession.restTimer = null;
+    }
+    hideRestTimer();
+}
+
+// Complete workout
+function completeWorkout(sessionId) {
+    if (confirm('Are you sure you want to complete this workout?')) {
+        window.location.href = `/workouts/complete/${sessionId}/`;
+    }
+}
+
+// Utility functions
+function getCsrfToken() {
+    const cookies = document.cookie.split(';');
+    for (let cookie of cookies) {
+        const [name, value] = cookie.trim().split('=');
+        if (name === 'csrftoken') {
+            return value;
+        }
+    }
+    return '';
+}
+</script>
 {% endblock %}

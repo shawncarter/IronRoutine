@@ -6,6 +6,7 @@ app_name = 'routines'
 urlpatterns = [
     path('', views.routine_list, name='routine_list'),
     path('create/', views.routine_create, name='routine_create'),
+    path('generate/', views.routine_generator, name='routine_generator'),
     path('<int:routine_id>/', views.routine_detail, name='routine_detail'),
     path('<int:routine_id>/edit/', views.routine_edit, name='routine_edit'),
     path('<int:routine_id>/delete/', views.routine_delete, name='routine_delete'),
