@@ -228,3 +228,109 @@ class MuscleGroupModelTests(TestCase):
         """Test muscle group string representation"""
         muscle_group = MuscleGroup.objects.create(name='Chest')
         self.assertEqual(str(muscle_group), 'Chest')
+
+
+class ExerciseAPIViewTests(TestCase):
+    """Test exercise API views"""
+
+    def setUp(self):
+        self.client = Client()
+        # Create test exercises
+        self.exercise1 = Exercise.objects.create(
+            title='Barbell Bench Press',
+            name='barbell-bench-press',
+            slug='barbell-bench-press',
+            equipment='barbell',
+            muscle='chest',
+            difficulty='Intermediate',
+            description='A compound chest exercise',
+            has_videos=True
+        )
+        self.exercise2 = Exercise.objects.create(
+            title='Dumbbell Curl',
+            name='dumbbell-curl',
+            slug='dumbbell-curl',
+            equipment='dumbbells',
+            muscle='biceps',
+            difficulty='Beginner',
+            description='An isolation bicep exercise'
+        )
+        self.muscle_group = MuscleGroup.objects.create(
+            name='Chest',
+            description='Chest muscles'
+        )
+        self.muscle_group.exercises.add(self.exercise1)
+
+    def test_exercise_api_list(self):
+        """Test exercise API list endpoint"""
+        response = self.client.get('/exercises/api/exercises/')
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertIn('count', data)
+        self.assertIn('exercises', data)
+        self.assertEqual(data['count'], 2)
+
+    def test_exercise_api_list_with_search(self):
+        """Test exercise API list with search filter"""
+        response = self.client.get('/exercises/api/exercises/', {'search': 'bench'})
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data['count'], 1)
+        self.assertEqual(data['exercises'][0]['title'], 'Barbell Bench Press')
+
+    def test_exercise_api_list_with_muscle_filter(self):
+        """Test exercise API list with muscle group filter"""
+        response = self.client.get('/exercises/api/exercises/', {'muscle_group': 'chest'})
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data['count'], 1)
+        self.assertEqual(data['exercises'][0]['muscle'], 'chest')
+
+    def test_exercise_api_list_with_equipment_filter(self):
+        """Test exercise API list with equipment filter"""
+        response = self.client.get('/exercises/api/exercises/', {'equipment': 'dumbbells'})
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data['count'], 1)
+        self.assertEqual(data['exercises'][0]['equipment'], 'dumbbells')
+
+    def test_exercise_api_list_with_difficulty_filter(self):
+        """Test exercise API list with difficulty filter"""
+        response = self.client.get('/exercises/api/exercises/', {'difficulty': 'Beginner'})
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data['count'], 1)
+        self.assertEqual(data['exercises'][0]['difficulty'], 'Beginner')
+
+    def test_exercise_api_list_with_limit(self):
+        """Test exercise API list with limit parameter"""
+        response = self.client.get('/exercises/api/exercises/', {'limit': '1'})
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data['count'], 1)
+
+    def test_exercise_api_detail(self):
+        """Test exercise API detail endpoint"""
+        response = self.client.get(f'/exercises/api/exercises/{self.exercise1.id}/')
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data['title'], 'Barbell Bench Press')
+        self.assertEqual(data['equipment'], 'barbell')
+        self.assertEqual(data['muscle'], 'chest')
+
+    def test_exercise_api_detail_not_found(self):
+        """Test exercise API detail with non-existent exercise"""
+        response = self.client.get('/exercises/api/exercises/99999/')
+        self.assertEqual(response.status_code, 404)
+        data = response.json()
+        self.assertIn('error', data)
+
+    def test_muscle_groups_api(self):
+        """Test muscle groups API endpoint"""
+        response = self.client.get('/exercises/api/muscle-groups/')
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertIn('count', data)
+        self.assertIn('muscle_groups', data)
+        self.assertEqual(data['count'], 1)
+        self.assertEqual(data['muscle_groups'][0]['name'], 'Chest')
