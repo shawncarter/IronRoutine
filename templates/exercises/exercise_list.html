@@ -145,7 +145,7 @@
                     
                     <!-- Bottom: Action button -->
                     <div class="d-flex gap-2">
-                        <a href="{% url 'exercises:exercise_detail' exercise.id %}" 
+                        <a href="{% url 'exercises:exercise_detail' exercise.id %}?{% if current_search %}search={{ current_search|urlencode }}&{% endif %}{% if current_muscle_group %}muscle_group={{ current_muscle_group|urlencode }}&{% endif %}{% if current_equipment %}equipment={{ current_equipment|urlencode }}&{% endif %}{% if current_difficulty %}difficulty={{ current_difficulty|urlencode }}{% endif %}"
                            class="btn btn-outline-primary btn-sm flex-fill">
                             <i class="bi bi-eye"></i> View Details
                         </a>

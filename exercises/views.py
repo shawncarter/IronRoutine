@@ -47,37 +47,48 @@ def exercise_list(request):
 
 def exercise_detail(request, exercise_id):
     exercise = get_object_or_404(Exercise, id=exercise_id)
-    
+
     # Get related exercises (same muscle groups or equipment)
     related_exercises = Exercise.objects.filter(
         Q(muscle_groups__in=exercise.muscle_groups.all()) |
         Q(muscle=exercise.muscle) |
         Q(equipment=exercise.equipment)
     ).exclude(id=exercise.id).distinct()[:6]
-    
+
     # Get instructions as a clean list
     instructions = exercise.get_instructions_list()
-    
+
     # Get video URLs
     male_videos = exercise.get_video_urls('male')
     female_videos = exercise.get_video_urls('female')
-    
+
     # Determine preferred gender for display (default to male)
     preferred_gender = request.GET.get('gender', 'male')
     videos = male_videos if preferred_gender == 'male' else female_videos
-    
+
+    # Preserve filter parameters for back navigation
+    filter_params = {}
+    for param in ['search', 'muscle_group', 'equipment', 'difficulty']:
+        value = request.GET.get(param)
+        if value:
+            filter_params[param] = value
+
+    # Build query string for back URL
+    from urllib.parse import urlencode
+    filter_query_string = urlencode(filter_params) if filter_params else ''
+
     # Check if we're coming from a routine
     from_routine = request.GET.get('from_routine')
     back_url = None
     back_text = "← Back"
-    
+
     if from_routine:
         try:
             from routines.models import Routine
             routine = Routine.objects.get(id=from_routine)
             # Check if user can view this routine
             can_view = (
-                routine.is_public or 
+                routine.is_public or
                 (request.user.is_authenticated and routine.user == request.user)
             )
             if can_view:
@@ -85,11 +96,13 @@ def exercise_detail(request, exercise_id):
                 back_text = f"← Back to {routine.name}"
         except (Routine.DoesNotExist, ValueError):
             pass
-    
+
     if not back_url:
         back_url = "/exercises/"
+        if filter_query_string:
+            back_url += f"?{filter_query_string}"
         back_text = "← Back to Exercises"
-    
+
     context = {
         'exercise': exercise,
         'related_exercises': related_exercises,
@@ -100,6 +113,7 @@ def exercise_detail(request, exercise_id):
         'preferred_gender': preferred_gender,
         'back_url': back_url,
         'back_text': back_text,
+        'filter_query_string': filter_query_string,
     }
     return render(request, 'exercises/exercise_detail.html', context)
 

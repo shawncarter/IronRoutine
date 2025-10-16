@@ -100,6 +100,47 @@ class ExerciseListViewTests(TestCase):
         self.assertContains(response, 'Push-up')
         self.assertNotContains(response, 'Bench Press')
 
+    def test_exercise_list_links_include_equipment_filter(self):
+        """Test that exercise detail links include equipment filter parameter"""
+        response = self.client.get(self.list_url, {'equipment': 'barbell'})
+        self.assertEqual(response.status_code, 200)
+        # Check that exercise detail links contain the equipment filter
+        self.assertContains(response, 'equipment=barbell')
+
+    def test_exercise_list_links_include_muscle_group_filter(self):
+        """Test that exercise detail links include muscle group filter parameter"""
+        response = self.client.get(self.list_url, {'muscle_group': 'chest'})
+        self.assertEqual(response.status_code, 200)
+        # Check that exercise detail links contain the muscle group filter
+        self.assertContains(response, 'muscle_group=chest')
+
+    def test_exercise_list_links_include_difficulty_filter(self):
+        """Test that exercise detail links include difficulty filter parameter"""
+        response = self.client.get(self.list_url, {'difficulty': 'Beginner'})
+        self.assertEqual(response.status_code, 200)
+        # Check that exercise detail links contain the difficulty filter
+        self.assertContains(response, 'difficulty=Beginner')
+
+    def test_exercise_list_links_include_search_filter(self):
+        """Test that exercise detail links include search filter parameter"""
+        response = self.client.get(self.list_url, {'search': 'push'})
+        self.assertEqual(response.status_code, 200)
+        # Check that exercise detail links contain the search filter
+        self.assertContains(response, 'search=push')
+
+    def test_exercise_list_links_include_multiple_filters(self):
+        """Test that exercise detail links include all active filters"""
+        response = self.client.get(self.list_url, {
+            'equipment': 'barbell',
+            'muscle_group': 'chest',
+            'difficulty': 'Intermediate'
+        })
+        self.assertEqual(response.status_code, 200)
+        # Check that exercise detail links contain all filters
+        self.assertContains(response, 'equipment=barbell')
+        self.assertContains(response, 'muscle_group=chest')
+        self.assertContains(response, 'difficulty=Intermediate')
+
 
 class ExerciseDetailViewTests(TestCase):
     """Test exercise detail view"""
@@ -130,6 +171,49 @@ class ExerciseDetailViewTests(TestCase):
         url = reverse('exercises:exercise_detail', kwargs={'exercise_id': 99999})
         response = self.client.get(url)
         self.assertEqual(response.status_code, 404)
+
+    def test_exercise_detail_preserves_equipment_filter(self):
+        """Test that equipment filter is preserved in back URL"""
+        response = self.client.get(self.detail_url, {'equipment': 'dumbbells'})
+        self.assertEqual(response.status_code, 200)
+        # Check that back URL contains the equipment filter
+        self.assertContains(response, 'equipment=dumbbells')
+
+    def test_exercise_detail_preserves_muscle_group_filter(self):
+        """Test that muscle group filter is preserved in back URL"""
+        response = self.client.get(self.detail_url, {'muscle_group': 'chest'})
+        self.assertEqual(response.status_code, 200)
+        # Check that back URL contains the muscle group filter
+        self.assertContains(response, 'muscle_group=chest')
+
+    def test_exercise_detail_preserves_difficulty_filter(self):
+        """Test that difficulty filter is preserved in back URL"""
+        response = self.client.get(self.detail_url, {'difficulty': 'Beginner'})
+        self.assertEqual(response.status_code, 200)
+        # Check that back URL contains the difficulty filter
+        self.assertContains(response, 'difficulty=Beginner')
+
+    def test_exercise_detail_preserves_search_filter(self):
+        """Test that search filter is preserved in back URL"""
+        response = self.client.get(self.detail_url, {'search': 'push'})
+        self.assertEqual(response.status_code, 200)
+        # Check that back URL contains the search filter
+        self.assertContains(response, 'search=push')
+
+    def test_exercise_detail_preserves_multiple_filters(self):
+        """Test that multiple filters are preserved in back URL"""
+        response = self.client.get(self.detail_url, {
+            'equipment': 'dumbbells',
+            'muscle_group': 'chest',
+            'difficulty': 'Intermediate',
+            'search': 'press'
+        })
+        self.assertEqual(response.status_code, 200)
+        # Check that back URL contains all filters
+        self.assertContains(response, 'equipment=dumbbells')
+        self.assertContains(response, 'muscle_group=chest')
+        self.assertContains(response, 'difficulty=Intermediate')
+        self.assertContains(response, 'search=press')
 
 
 class MuscleGroupModelTests(TestCase):
