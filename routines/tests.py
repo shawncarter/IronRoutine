@@ -326,3 +326,326 @@ class RoutineDeleteViewTests(TestCase):
         self.assertEqual(response.status_code, 302)
         # Routine should be deleted
         self.assertFalse(Routine.objects.filter(id=self.routine.id).exists())
+
+
+class RoutineStartViewTests(TestCase):
+    """Test routine start view"""
+
+    def setUp(self):
+        self.client = Client()
+        self.user = User.objects.create_user(
+            username='testuser',
+            password='testpass123!@#'
+        )
+        self.routine = Routine.objects.create(
+            name='Test Routine',
+            user=self.user,
+            is_public=True
+        )
+        self.start_url = reverse('routines:routine_start', kwargs={'routine_id': self.routine.id})
+
+    def test_routine_start_requires_login(self):
+        """Test starting a routine requires authentication"""
+        response = self.client.get(self.start_url)
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/accounts/login/', response.url)
+
+    def test_routine_start_creates_workout_session(self):
+        """Test starting a routine creates a workout session"""
+        self.client.login(username='testuser', password='testpass123!@#')
+
+        response = self.client.get(self.start_url)
+        self.assertEqual(response.status_code, 302)
+
+        # Verify workout session was created
+        from workouts.models import WorkoutSession
+        session = WorkoutSession.objects.filter(user=self.user, routine=self.routine).first()
+        self.assertIsNotNone(session)
+        self.assertEqual(session.status, 'in_progress')
+
+    def test_routine_start_private_routine_requires_ownership(self):
+        """Test starting a private routine requires ownership"""
+        # Create another user and private routine
+        other_user = User.objects.create_user(username='otheruser', password='testpass123!@#')
+        private_routine = Routine.objects.create(
+            name='Private Routine',
+            user=other_user,
+            is_public=False
+        )
+
+        self.client.login(username='testuser', password='testpass123!@#')
+        response = self.client.get(reverse('routines:routine_start', kwargs={'routine_id': private_routine.id}))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/routines/', response.url)
+
+
+class RoutineCopyViewTests(TestCase):
+    """Test routine copy view"""
+
+    def setUp(self):
+        self.client = Client()
+        self.user = User.objects.create_user(
+            username='testuser',
+            password='testpass123!@#'
+        )
+        self.other_user = User.objects.create_user(
+            username='otheruser',
+            password='testpass123!@#'
+        )
+
+        # Create a public routine with exercises
+        self.public_routine = Routine.objects.create(
+            name='Public Routine',
+            user=self.other_user,
+            is_public=True
+        )
+
+        self.exercise = Exercise.objects.create(
+            title='Push-up',
+            slug='push-up',
+            equipment='bodyweight'
+        )
+
+        RoutineExercise.objects.create(
+            routine=self.public_routine,
+            exercise=self.exercise,
+            sets_count=3,
+            rest_time_seconds=60,
+            order=0
+        )
+
+        self.copy_url = reverse('routines:routine_copy', kwargs={'routine_id': self.public_routine.id})
+
+    def test_routine_copy_requires_login(self):
+        """Test copying a routine requires authentication"""
+        response = self.client.get(self.copy_url)
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/accounts/login/', response.url)
+
+    def test_routine_copy_creates_new_routine(self):
+        """Test copying a routine creates a new routine for the user"""
+        self.client.login(username='testuser', password='testpass123!@#')
+
+        initial_count = Routine.objects.filter(user=self.user).count()
+        response = self.client.get(self.copy_url)
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(Routine.objects.filter(user=self.user).count(), initial_count + 1)
+
+        # Verify the copied routine
+        copied_routine = Routine.objects.filter(user=self.user).first()
+        self.assertIn('Copy', copied_routine.name)
+        self.assertFalse(copied_routine.is_public)  # Copies are private by default
+
+    def test_routine_copy_copies_exercises(self):
+        """Test copying a routine also copies all exercises"""
+        self.client.login(username='testuser', password='testpass123!@#')
+
+        response = self.client.get(self.copy_url)
+        self.assertEqual(response.status_code, 302)
+
+        # Verify exercises were copied
+        copied_routine = Routine.objects.filter(user=self.user).first()
+        self.assertEqual(copied_routine.routine_exercises.count(), 1)
+
+        copied_exercise = copied_routine.routine_exercises.first()
+        original_exercise = self.public_routine.routine_exercises.first()
+
+        self.assertEqual(copied_exercise.exercise, original_exercise.exercise)
+        self.assertEqual(copied_exercise.sets_count, original_exercise.sets_count)
+        self.assertEqual(copied_exercise.rest_time_seconds, original_exercise.rest_time_seconds)
+
+    def test_routine_copy_private_routine_fails(self):
+        """Test copying a private routine is not allowed"""
+        private_routine = Routine.objects.create(
+            name='Private Routine',
+            user=self.other_user,
+            is_public=False
+        )
+
+        self.client.login(username='testuser', password='testpass123!@#')
+        response = self.client.get(reverse('routines:routine_copy', kwargs={'routine_id': private_routine.id}))
+
+        self.assertEqual(response.status_code, 302)
+        # Should not create a new routine
+        self.assertEqual(Routine.objects.filter(user=self.user).count(), 0)
+
+
+class RoutineAPIViewTests(TestCase):
+    """Test routine API endpoints"""
+
+    def setUp(self):
+        self.client = Client()
+        self.user = User.objects.create_user(
+            username='testuser',
+            password='testpass123!@#'
+        )
+        self.routine = Routine.objects.create(
+            name='Test Routine',
+            user=self.user,
+            is_public=False
+        )
+        self.exercise = Exercise.objects.create(
+            title='Push-up',
+            slug='push-up',
+            equipment='bodyweight'
+        )
+
+    def test_user_routines_api_requires_authentication(self):
+        """Test user routines API requires authentication"""
+        response = self.client.get(reverse('routines:user_routines_api'))
+        self.assertEqual(response.status_code, 401)
+        data = response.json()
+        self.assertIn('error', data)
+
+    def test_user_routines_api_returns_user_routines(self):
+        """Test user routines API returns user's routines"""
+        self.client.login(username='testuser', password='testpass123!@#')
+
+        response = self.client.get(reverse('routines:user_routines_api'))
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+
+        self.assertIn('routines', data)
+        self.assertEqual(len(data['routines']), 1)
+        self.assertEqual(data['routines'][0]['name'], 'Test Routine')
+
+    def test_add_exercise_to_routine_requires_authentication(self):
+        """Test adding exercise to routine requires authentication"""
+        import json
+        response = self.client.post(
+            reverse('routines:add_exercise_to_routine', kwargs={'routine_id': self.routine.id}),
+            data=json.dumps({'exercise_id': self.exercise.id}),
+            content_type='application/json'
+        )
+        self.assertEqual(response.status_code, 401)
+
+    def test_add_exercise_to_routine_success(self):
+        """Test successfully adding exercise to routine"""
+        import json
+        self.client.login(username='testuser', password='testpass123!@#')
+
+        response = self.client.post(
+            reverse('routines:add_exercise_to_routine', kwargs={'routine_id': self.routine.id}),
+            data=json.dumps({'exercise_id': self.exercise.id}),
+            content_type='application/json'
+        )
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data['success'])
+
+        # Verify exercise was added
+        self.assertEqual(self.routine.routine_exercises.count(), 1)
+
+    def test_add_exercise_to_routine_duplicate_fails(self):
+        """Test adding duplicate exercise to routine fails gracefully"""
+        import json
+        self.client.login(username='testuser', password='testpass123!@#')
+
+        # Add exercise first time
+        RoutineExercise.objects.create(
+            routine=self.routine,
+            exercise=self.exercise,
+            sets_count=3,
+            rest_time_seconds=60,
+            order=0
+        )
+
+        # Try to add again
+        response = self.client.post(
+            reverse('routines:add_exercise_to_routine', kwargs={'routine_id': self.routine.id}),
+            data=json.dumps({'exercise_id': self.exercise.id}),
+            content_type='application/json'
+        )
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertFalse(data['success'])
+        self.assertIn('already in routine', data['message'])
+
+    def test_add_exercise_to_routine_missing_exercise_id(self):
+        """Test adding exercise without exercise_id fails"""
+        import json
+        self.client.login(username='testuser', password='testpass123!@#')
+
+        response = self.client.post(
+            reverse('routines:add_exercise_to_routine', kwargs={'routine_id': self.routine.id}),
+            data=json.dumps({}),
+            content_type='application/json'
+        )
+
+        self.assertEqual(response.status_code, 400)
+        data = response.json()
+        self.assertIn('error', data)
+
+    def test_add_exercise_to_routine_invalid_json(self):
+        """Test adding exercise with invalid JSON fails"""
+        self.client.login(username='testuser', password='testpass123!@#')
+
+        response = self.client.post(
+            reverse('routines:add_exercise_to_routine', kwargs={'routine_id': self.routine.id}),
+            data='invalid json',
+            content_type='application/json'
+        )
+
+        self.assertEqual(response.status_code, 400)
+
+
+class RoutineCreateWithFiltersTests(TestCase):
+    """Test routine create view with exercise filters"""
+
+    def setUp(self):
+        self.client = Client()
+        self.user = User.objects.create_user(
+            username='testuser',
+            password='testpass123!@#'
+        )
+        # Create exercises with different attributes
+        self.exercise1 = Exercise.objects.create(
+            title='Barbell Bench Press',
+            slug='barbell-bench-press',
+            equipment='barbell',
+            muscle='chest',
+            difficulty='Intermediate'
+        )
+        self.exercise2 = Exercise.objects.create(
+            title='Dumbbell Curl',
+            slug='dumbbell-curl',
+            equipment='dumbbells',
+            muscle='biceps',
+            difficulty='Beginner'
+        )
+
+    def test_routine_create_with_search_filter(self):
+        """Test routine create page with search filter"""
+        self.client.login(username='testuser', password='testpass123!@#')
+
+        response = self.client.get(reverse('routines:routine_create'), {'search': 'bench'})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Barbell Bench Press')
+        self.assertNotContains(response, 'Dumbbell Curl')
+
+    def test_routine_create_with_equipment_filter(self):
+        """Test routine create page with equipment filter"""
+        self.client.login(username='testuser', password='testpass123!@#')
+
+        response = self.client.get(reverse('routines:routine_create'), {'equipment': 'dumbbells'})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Dumbbell Curl')
+
+    def test_routine_create_with_muscle_filter(self):
+        """Test routine create page with muscle group filter"""
+        self.client.login(username='testuser', password='testpass123!@#')
+
+        response = self.client.get(reverse('routines:routine_create'), {'muscle_group': 'chest'})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Barbell Bench Press')
+
+    def test_routine_create_with_difficulty_filter(self):
+        """Test routine create page with difficulty filter"""
+        self.client.login(username='testuser', password='testpass123!@#')
+
+        response = self.client.get(reverse('routines:routine_create'), {'difficulty': 'Beginner'})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Dumbbell Curl')
