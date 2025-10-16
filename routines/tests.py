@@ -649,3 +649,107 @@ class RoutineCreateWithFiltersTests(TestCase):
         response = self.client.get(reverse('routines:routine_create'), {'difficulty': 'Beginner'})
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Dumbbell Curl')
+
+
+class RoutineCreateWithInvalidDataTests(TestCase):
+    """Test routine create with invalid exercise data"""
+
+    def setUp(self):
+        self.client = Client()
+        self.user = User.objects.create_user(
+            username='testuser',
+            password='testpass123!@#'
+        )
+        self.exercise = Exercise.objects.create(
+            title='Push-up',
+            slug='push-up',
+            equipment='bodyweight'
+        )
+
+    def test_routine_create_with_invalid_exercise_id(self):
+        """Test routine create with non-existent exercise ID"""
+        self.client.login(username='testuser', password='testpass123!@#')
+
+        response = self.client.post(reverse('routines:routine_create'), {
+            'name': 'Test Routine',
+            'description': 'Test',
+            'exercise_99999': 'on',  # Non-existent exercise
+            'sets_99999': '3',
+            'rest_99999': '60'
+        })
+
+        # Should still create routine, just skip invalid exercise
+        self.assertEqual(response.status_code, 302)
+        routine = Routine.objects.filter(name='Test Routine').first()
+        self.assertIsNotNone(routine)
+        # Should have no exercises
+        self.assertEqual(routine.routine_exercises.count(), 0)
+
+    def test_routine_create_with_invalid_sets_value(self):
+        """Test routine create with invalid sets value"""
+        self.client.login(username='testuser', password='testpass123!@#')
+
+        response = self.client.post(reverse('routines:routine_create'), {
+            'name': 'Test Routine',
+            'description': 'Test',
+            f'exercise_{self.exercise.id}': 'on',
+            f'sets_{self.exercise.id}': 'invalid',  # Invalid sets value
+            f'rest_{self.exercise.id}': '60'
+        })
+
+        # Should still create routine, just skip exercise with invalid data
+        self.assertEqual(response.status_code, 302)
+        routine = Routine.objects.filter(name='Test Routine').first()
+        self.assertIsNotNone(routine)
+        # Should have no exercises due to ValueError
+        self.assertEqual(routine.routine_exercises.count(), 0)
+
+    def test_routine_create_with_invalid_rest_value(self):
+        """Test routine create with invalid rest time value"""
+        self.client.login(username='testuser', password='testpass123!@#')
+
+        response = self.client.post(reverse('routines:routine_create'), {
+            'name': 'Test Routine',
+            'description': 'Test',
+            f'exercise_{self.exercise.id}': 'on',
+            f'sets_{self.exercise.id}': '3',
+            f'rest_{self.exercise.id}': 'invalid'  # Invalid rest value
+        })
+
+        # Should still create routine, just skip exercise with invalid data
+        self.assertEqual(response.status_code, 302)
+        routine = Routine.objects.filter(name='Test Routine').first()
+        self.assertIsNotNone(routine)
+        # Should have no exercises due to ValueError
+        self.assertEqual(routine.routine_exercises.count(), 0)
+
+    def test_routine_create_with_mixed_valid_invalid_exercises(self):
+        """Test routine create with mix of valid and invalid exercises"""
+        self.client.login(username='testuser', password='testpass123!@#')
+
+        exercise2 = Exercise.objects.create(
+            title='Squat',
+            slug='squat',
+            equipment='bodyweight'
+        )
+
+        response = self.client.post(reverse('routines:routine_create'), {
+            'name': 'Test Routine',
+            'description': 'Test',
+            f'exercise_{self.exercise.id}': 'on',
+            f'sets_{self.exercise.id}': '3',
+            f'rest_{self.exercise.id}': '60',
+            'exercise_99999': 'on',  # Invalid exercise
+            'sets_99999': '3',
+            'rest_99999': '60',
+            f'exercise_{exercise2.id}': 'on',
+            f'sets_{exercise2.id}': '4',
+            f'rest_{exercise2.id}': '90'
+        })
+
+        # Should create routine with only valid exercises
+        self.assertEqual(response.status_code, 302)
+        routine = Routine.objects.filter(name='Test Routine').first()
+        self.assertIsNotNone(routine)
+        # Should have 2 valid exercises
+        self.assertEqual(routine.routine_exercises.count(), 2)

@@ -448,3 +448,171 @@ class SaveWorkoutSetTests(TestCase):
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertFalse(data['success'])
+
+
+class WorkoutExerciseSetsAPITests(TestCase):
+    """Test workout exercise sets API endpoint"""
+
+    def setUp(self):
+        self.client = Client()
+        self.user = User.objects.create_user(
+            username='testuser',
+            password='testpass123!@#'
+        )
+
+        self.routine = Routine.objects.create(
+            name='Test Routine',
+            user=self.user
+        )
+
+        self.exercise = Exercise.objects.create(
+            title='Push-up',
+            slug='push-up',
+            equipment='bodyweight'
+        )
+
+        RoutineExercise.objects.create(
+            routine=self.routine,
+            exercise=self.exercise,
+            sets_count=3,
+            rest_time_seconds=60,
+            order=0
+        )
+
+        self.session = WorkoutSession.objects.create(
+            routine=self.routine,
+            user=self.user,
+            status='in_progress'
+        )
+
+    def test_workout_exercise_sets_api_success(self):
+        """Test successfully fetching workout sets"""
+        self.client.login(username='testuser', password='testpass123!@#')
+
+        # Create some workout sets
+        WorkoutSet.objects.create(
+            session=self.session,
+            exercise=self.exercise,
+            set_number=1,
+            weight=100,
+            reps=10
+        )
+        WorkoutSet.objects.create(
+            session=self.session,
+            exercise=self.exercise,
+            set_number=2,
+            weight=105,
+            reps=8
+        )
+
+        url = reverse('workouts:workout_exercise_sets_api', kwargs={
+            'session_id': self.session.id,
+            'exercise_id': self.exercise.id
+        })
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data['success'])
+        self.assertEqual(len(data['sets']), 2)
+        self.assertEqual(data['total_sets'], 2)
+
+    def test_workout_exercise_sets_api_permission_denied(self):
+        """Test fetching sets for another user's session fails"""
+        other_user = User.objects.create_user(username='otheruser', password='testpass123!@#')
+        self.client.login(username='otheruser', password='testpass123!@#')
+
+        url = reverse('workouts:workout_exercise_sets_api', kwargs={
+            'session_id': self.session.id,
+            'exercise_id': self.exercise.id
+        })
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 403)
+        data = response.json()
+        self.assertFalse(data['success'])
+
+    def test_workout_exercise_sets_api_anonymous_user_requires_demo(self):
+        """Test anonymous user can only access demo user sessions"""
+        url = reverse('workouts:workout_exercise_sets_api', kwargs={
+            'session_id': self.session.id,
+            'exercise_id': self.exercise.id
+        })
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 401)
+        data = response.json()
+        self.assertFalse(data['success'])
+
+
+class WorkoutCompleteTests(TestCase):
+    """Test workout completion functionality"""
+
+    def setUp(self):
+        self.client = Client()
+        self.user = User.objects.create_user(
+            username='testuser',
+            password='testpass123!@#'
+        )
+
+        self.routine = Routine.objects.create(
+            name='Test Routine',
+            user=self.user
+        )
+
+        self.exercise = Exercise.objects.create(
+            title='Push-up',
+            slug='push-up',
+            equipment='bodyweight'
+        )
+
+        RoutineExercise.objects.create(
+            routine=self.routine,
+            exercise=self.exercise,
+            sets_count=3,
+            rest_time_seconds=60,
+            order=0
+        )
+
+        self.session = WorkoutSession.objects.create(
+            routine=self.routine,
+            user=self.user,
+            status='in_progress'
+        )
+
+    def test_workout_complete_post_marks_complete(self):
+        """Test POST request marks workout as complete"""
+        self.client.login(username='testuser', password='testpass123!@#')
+
+        url = reverse('workouts:workout_complete', kwargs={'session_id': self.session.id})
+        response = self.client.post(url)
+
+        # Should redirect to workout history
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/workouts/', response.url)
+
+        # Verify session was marked complete
+        self.session.refresh_from_db()
+        self.assertEqual(self.session.status, 'completed')
+        self.assertIsNotNone(self.session.completed_at)
+
+    def test_workout_complete_permission_denied_for_other_user(self):
+        """Test completing another user's workout fails"""
+        other_user = User.objects.create_user(username='otheruser', password='testpass123!@#')
+        self.client.login(username='otheruser', password='testpass123!@#')
+
+        url = reverse('workouts:workout_complete', kwargs={'session_id': self.session.id})
+        response = self.client.get(url)
+
+        # Should redirect to workout history
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/workouts/', response.url)
+
+    def test_workout_complete_anonymous_user_requires_demo(self):
+        """Test anonymous user can only complete demo user sessions"""
+        url = reverse('workouts:workout_complete', kwargs={'session_id': self.session.id})
+        response = self.client.get(url)
+
+        # Should redirect to login
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/accounts/login/', response.url)
